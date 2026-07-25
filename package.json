@@ -117,12 +117,12 @@
     "author": "Pavel Lazarchuk",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/pavellazarchuk/react-kithooks.git"
+        "url": "git+https://github.com/PavelLazarchuk/react-kithooks.git"
     },
     "bugs": {
-        "url": "https://github.com/pavellazarchuk/react-kithooks/issues"
+        "url": "https://github.com/PavelLazarchuk/react-kithooks/issues"
     },
-    "homepage": "https://github.com/pavellazarchuk/react-kithooks#readme",
+    "homepage": "https://github.com/PavelLazarchuk/react-kithooks#readme",
     "devDependencies": {
         "@arethetypeswrong/cli": "^0.18.5",
         "@changesets/cli": "^2.31.1",
