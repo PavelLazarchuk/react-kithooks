@@ -12,12 +12,9 @@ export type KeyBindingValue = KeyHandler | ({ handler: KeyHandler } & KeyBinding
 
 export type KeyBindings = Record<string, KeyBindingValue>;
 
-interface NormalizedBinding {
-    keys: string;
+interface MatchedBinding {
     handler: KeyHandler;
-    enableOnFormElements: boolean;
     preventDefault: boolean;
-    ignoreRepeat: boolean;
 }
 
 interface ParsedCombo {
@@ -160,24 +157,20 @@ function comboMatches(combo: ParsedCombo, e: KeyboardEvent): boolean {
     return true;
 }
 
-function normalizeBindings(bindings: KeyBindings): NormalizedBinding[] {
-    return Object.entries(bindings).map(([keys, value]) =>
-        typeof value === 'function'
-            ? {
-                  keys,
-                  handler: value,
-                  enableOnFormElements: false,
-                  preventDefault: true,
-                  ignoreRepeat: false,
-              }
-            : {
-                  keys,
-                  handler: value.handler,
-                  enableOnFormElements: value.enableOnFormElements ?? false,
-                  preventDefault: value.preventDefault ?? true,
-                  ignoreRepeat: value.ignoreRepeat ?? false,
-              }
-    );
+const BINDING_DEFAULTS: Required<KeyBindingOptions> = {
+    enableOnFormElements: false,
+    preventDefault: true,
+    ignoreRepeat: false,
+};
+
+function bindingFlag(value: KeyBindingValue, flag: keyof KeyBindingOptions): boolean {
+    if (typeof value === 'function') return BINDING_DEFAULTS[flag];
+
+    return value[flag] ?? BINDING_DEFAULTS[flag];
+}
+
+function bindingHandler(value: KeyBindingValue): KeyHandler {
+    return typeof value === 'function' ? value : value.handler;
 }
 
 function isFormTarget(e: KeyboardEvent): boolean {
@@ -197,6 +190,7 @@ function isFormTarget(e: KeyboardEvent): boolean {
 
 export class KeyboardScopeManager {
     private entries: ScopeEntry[] = [];
+    private orderedCache: ScopeEntry[] | null = null;
     private seqCounter = 0;
     private listeners = createListenerSet();
     private attached = false;
@@ -211,6 +205,7 @@ export class KeyboardScopeManager {
         const entry: ScopeEntry = { ...config, seq: ++this.seqCounter };
 
         this.entries.push(entry);
+        this.orderedCache = null;
         this.attach();
 
         return {
@@ -219,6 +214,9 @@ export class KeyboardScopeManager {
                 const idx = this.entries.indexOf(entry);
 
                 if (idx !== -1) this.entries.splice(idx, 1);
+
+                this.orderedCache = null;
+
                 if (this.entries.length === 0) this.detach();
 
                 this.notify();
@@ -238,12 +236,17 @@ export class KeyboardScopeManager {
 
     destroy(): void {
         this.entries = [];
+        this.orderedCache = null;
         this.detach();
         this.notify();
     }
 
     private ordered(): ScopeEntry[] {
-        return [...this.entries].sort((a, b) => b.priority - a.priority || b.seq - a.seq);
+        this.orderedCache ??= [...this.entries].sort(
+            (a, b) => b.priority - a.priority || b.seq - a.seq
+        );
+
+        return this.orderedCache;
     }
 
     private attach(): void {
@@ -265,15 +268,22 @@ export class KeyboardScopeManager {
         this.attached = false;
     }
 
-    private findMatch(entry: ScopeEntry, e: KeyboardEvent): NormalizedBinding | null {
+    private findMatch(entry: ScopeEntry, e: KeyboardEvent): MatchedBinding | null {
         const formTarget = isFormTarget(e);
+        const bindings = entry.getBindings();
 
-        for (const binding of normalizeBindings(entry.getBindings())) {
-            if (formTarget && !binding.enableOnFormElements) continue;
-            if (binding.ignoreRepeat && e.repeat) continue;
-            if (parseCombos(binding.keys).some(combo => comboMatches(combo, e))) {
-                return binding;
-            }
+        for (const keys in bindings) {
+            const value = bindings[keys];
+
+            if (value === undefined) continue;
+            if (formTarget && !bindingFlag(value, 'enableOnFormElements')) continue;
+            if (e.repeat && bindingFlag(value, 'ignoreRepeat')) continue;
+            if (!parseCombos(keys).some(combo => comboMatches(combo, e))) continue;
+
+            return {
+                handler: bindingHandler(value),
+                preventDefault: bindingFlag(value, 'preventDefault'),
+            };
         }
 
         return null;

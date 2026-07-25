@@ -58,7 +58,7 @@ function requestGeolocation(): Promise<RequestOutcome> {
                 if (err.code === err.PERMISSION_DENIED) {
                     resolve({ status: 'denied', authoritative: true });
                 } else {
-                    resolve({ status: 'granted', authoritative: true });
+                    resolve({ status: 'prompt', authoritative: false });
                 }
             },
             { timeout: 30_000 }

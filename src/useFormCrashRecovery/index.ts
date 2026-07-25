@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { idbDelete, idbGet, idbPut, idbSupported, idbSweepExpired } from './idb';
 import { omitPaths, stripNonCloneable } from './paths';
 import { errorName } from '../internal/errorName';
+import { isDev } from '../internal/isDev';
 
 export interface UseFormCrashRecoveryOptions {
     key: string;
@@ -163,10 +164,14 @@ export function useFormCrashRecovery<T extends Record<string, unknown>>(
                 if (errorName(err) !== 'DataCloneError') throw err;
 
                 const { cleaned, dropped } = stripNonCloneable(record.data);
-                console.warn(
-                    `[react-kithooks] useFormCrashRecovery("${pending.debugKey}"): dropped non-serializable ` +
-                        `fields: ${dropped.join(', ')}. Exclude them explicitly via options.exclude.`
-                );
+
+                if (isDev) {
+                    console.warn(
+                        `[react-kithooks] useFormCrashRecovery("${pending.debugKey}"): dropped non-serializable ` +
+                            `fields: ${dropped.join(', ')}. Exclude them explicitly via options.exclude.`
+                    );
+                }
+
                 await idbPut(pending.fullKey, { ...record, data: cleaned });
             }
 

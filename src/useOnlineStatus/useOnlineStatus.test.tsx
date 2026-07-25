@@ -96,6 +96,20 @@ describe('useOnlineStatus', () => {
         await vi.waitFor(() => expect(result.current.isOnline).toBe(false));
     });
 
+    it('pings with no-cors, so a cross-origin endpoint is not read as offline', async () => {
+        const fetchMock = vi.fn<typeof fetch>(() => Promise.resolve({} as Response));
+        vi.stubGlobal('fetch', fetchMock);
+
+        renderHook(() => useOnlineStatus({ pingUrl: 'https://example.com/ping' }));
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+        expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+            method: 'HEAD',
+            cache: 'no-store',
+            mode: 'no-cors',
+        });
+    });
+
     it('re-pings on an interval while the tab is visible', async () => {
         const fetchMock = vi.fn(() => Promise.resolve({} as Response));
         vi.stubGlobal('fetch', fetchMock);

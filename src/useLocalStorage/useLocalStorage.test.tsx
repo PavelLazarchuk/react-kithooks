@@ -135,4 +135,96 @@ describe('useLocalStorage', () => {
         rerender({ key: 'dyn-k2', init: 2 });
         expect(result.current[0]).toBe(2);
     });
+
+    describe('when storage is unavailable or full', () => {
+        const original = Object.getOwnPropertyDescriptor(window, 'localStorage')!;
+
+        function replaceLocalStorage(descriptor: PropertyDescriptor) {
+            Object.defineProperty(window, 'localStorage', {
+                configurable: true,
+                ...descriptor,
+            });
+            resetStorageStores();
+        }
+
+        afterEach(() => {
+            Object.defineProperty(window, 'localStorage', original);
+            resetStorageStores();
+        });
+
+        it('renders instead of throwing when accessing localStorage itself throws', () => {
+            replaceLocalStorage({
+                get() {
+                    throw new DOMException('denied', 'SecurityError');
+                },
+            });
+
+            const { result } = renderHook(() => useLocalStorage('count', 7));
+            expect(result.current[0]).toBe(7);
+        });
+
+        it('keeps state in memory when the value cannot be persisted', () => {
+            replaceLocalStorage({
+                get() {
+                    throw new DOMException('denied', 'SecurityError');
+                },
+            });
+
+            const { result } = renderHook(() => useLocalStorage('count', 0));
+            act(() => result.current[1](5));
+
+            expect(result.current[0]).toBe(5);
+        });
+
+        it('keeps state in memory when a write exceeds the quota', () => {
+            const real = window.localStorage;
+            replaceLocalStorage({
+                value: {
+                    getItem: (key: string) => real.getItem(key),
+                    removeItem: (key: string) => real.removeItem(key),
+                    setItem: () => {
+                        throw new DOMException('full', 'QuotaExceededError');
+                    },
+                },
+            });
+
+            const { result } = renderHook(() => useLocalStorage('count', 0));
+            act(() => result.current[1](5));
+
+            expect(result.current[0]).toBe(5);
+        });
+
+        it('shares the in-memory value with another instance of the same key', () => {
+            replaceLocalStorage({
+                get() {
+                    throw new DOMException('denied', 'SecurityError');
+                },
+            });
+
+            const writer = renderHook(() => useLocalStorage('count', 0));
+            const reader = renderHook(() => useLocalStorage('count', 0));
+
+            act(() => writer.result.current[1](3));
+            expect(reader.result.current[0]).toBe(3);
+        });
+
+        it('keeps the memory-only value alive across a remount', async () => {
+            replaceLocalStorage({
+                get() {
+                    throw new DOMException('denied', 'SecurityError');
+                },
+            });
+
+            const first = renderHook(() => useLocalStorage('count', 0));
+            act(() => first.result.current[1](9));
+            first.unmount();
+
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            const second = renderHook(() => useLocalStorage('count', 0));
+            expect(second.result.current[0]).toBe(9);
+        });
+    });
 });

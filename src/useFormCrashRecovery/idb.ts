@@ -1,99 +1,43 @@
+import {
+    idbGet as coreGet,
+    idbRemove as coreRemove,
+    idbSet as coreSet,
+    idbSupported,
+    idbSweep,
+    resetIdbConnectionsForTests,
+} from '../internal/idb';
+
 const DB_NAME = 'react-kithooks:drafts';
 const STORE = 'drafts';
 
-let dbPromise: Promise<IDBDatabase> | null = null;
+export { idbSupported };
 
-export function idbSupported(): boolean {
-    return typeof indexedDB !== 'undefined';
+export function idbGet<T>(key: string): Promise<T | undefined> {
+    return coreGet<T>(DB_NAME, STORE, key);
 }
 
-function openDb(): Promise<IDBDatabase> {
-    if (dbPromise) return dbPromise;
-
-    dbPromise = new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB_NAME, 1);
-
-        req.onupgradeneeded = () => {
-            req.result.createObjectStore(STORE);
-        };
-        req.onsuccess = () => {
-            const db = req.result;
-
-            db.onversionchange = () => {
-                db.close();
-                dbPromise = null;
-            };
-
-            resolve(db);
-        };
-        req.onerror = () => {
-            dbPromise = null;
-            reject(req.error ?? new Error('indexedDB open failed'));
-        };
-    });
-
-    return dbPromise;
+export function idbPut(key: string, value: unknown): Promise<void> {
+    return coreSet(DB_NAME, STORE, key, value);
 }
 
-export async function idbGet<T>(key: string): Promise<T | undefined> {
-    const db = await openDb();
-
-    return new Promise((resolve, reject) => {
-        const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(key);
-
-        req.onsuccess = () => resolve(req.result as T | undefined);
-        req.onerror = () => reject(req.error ?? new Error('indexedDB get failed'));
-    });
-}
-
-export async function idbPut(key: string, value: unknown): Promise<void> {
-    const db = await openDb();
-
-    return new Promise((resolve, reject) => {
-        const t = db.transaction(STORE, 'readwrite');
-
-        t.objectStore(STORE).put(value, key);
-        t.oncomplete = () => resolve();
-        t.onerror = () => reject(t.error ?? new Error('indexedDB put failed'));
-        t.onabort = () => reject(t.error ?? new Error('indexedDB transaction aborted'));
-    });
-}
-
-export async function idbDelete(key: string): Promise<void> {
-    const db = await openDb();
-    return new Promise((resolve, reject) => {
-        const t = db.transaction(STORE, 'readwrite');
-        t.objectStore(STORE).delete(key);
-        t.oncomplete = () => resolve();
-        t.onerror = () => reject(t.error ?? new Error('indexedDB delete failed'));
-    });
+export function idbDelete(key: string): Promise<void> {
+    return coreRemove(DB_NAME, STORE, key);
 }
 
 /** Opportunistic housekeeping: drop every record past its own recorded TTL. */
-export async function idbSweepExpired(now: number): Promise<void> {
-    const db = await openDb();
-    return new Promise((resolve, reject) => {
-        const t = db.transaction(STORE, 'readwrite');
-        const req = t.objectStore(STORE).openCursor();
-        req.onsuccess = () => {
-            const cursor = req.result;
-            if (!cursor) return;
-            const rec = cursor.value as { savedAt?: unknown; ttlMs?: unknown } | undefined;
-            if (
-                rec &&
-                typeof rec.savedAt === 'number' &&
-                typeof rec.ttlMs === 'number' &&
-                rec.savedAt + rec.ttlMs < now
-            ) {
-                cursor.delete();
-            }
-            cursor.continue();
-        };
-        t.oncomplete = () => resolve();
-        t.onerror = () => reject(t.error ?? new Error('indexedDB sweep failed'));
+export function idbSweepExpired(now: number): Promise<void> {
+    return idbSweep(DB_NAME, STORE, value => {
+        const rec = value as { savedAt?: unknown; ttlMs?: unknown } | undefined;
+
+        return (
+            !!rec &&
+            typeof rec.savedAt === 'number' &&
+            typeof rec.ttlMs === 'number' &&
+            rec.savedAt + rec.ttlMs < now
+        );
     });
 }
 
 export function resetIdbCacheForTests(): void {
-    dbPromise = null;
+    resetIdbConnectionsForTests();
 }

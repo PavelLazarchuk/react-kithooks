@@ -18,7 +18,16 @@ async function ping(url: string, timeoutMs: number): Promise<boolean> {
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-        await fetch(url, { method: 'HEAD', cache: 'no-store', signal: controller.signal });
+        // `no-cors` because a cross-origin endpoint without CORS headers would
+        // otherwise reject exactly like a dead network and be reported as
+        // offline — the most likely way to misconfigure this hook, and one
+        // that fails silently.
+        await fetch(url, {
+            method: 'HEAD',
+            cache: 'no-store',
+            mode: 'no-cors',
+            signal: controller.signal,
+        });
 
         return true;
     } catch {

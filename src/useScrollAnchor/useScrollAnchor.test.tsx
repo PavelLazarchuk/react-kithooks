@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
 import { useScrollAnchor } from './index';
@@ -228,6 +228,69 @@ describe('useScrollAnchor', () => {
         await flushMutations();
 
         expect(box.scrollTop()).toBe(700);
+    });
+
+    describe('reduced motion', () => {
+        function stubMatchMedia(prefersReduce: boolean) {
+            Object.defineProperty(window, 'matchMedia', {
+                configurable: true,
+                writable: true,
+                value: (query: string) => ({
+                    matches: prefersReduce && query.includes('prefers-reduced-motion'),
+                    media: query,
+                    addEventListener: () => undefined,
+                    removeEventListener: () => undefined,
+                }),
+            });
+        }
+
+        afterEach(() => {
+            Reflect.deleteProperty(window, 'matchMedia');
+        });
+
+        it('animates a smooth scroll when motion is fine', () => {
+            stubMatchMedia(false);
+            const box = makeScrollable({ scrollTop: 0 });
+            const scrollTo = vi.fn();
+            box.el.scrollTo = scrollTo as unknown as typeof box.el.scrollTo;
+
+            const { result } = renderHook(() => useScrollAnchor({ initialScrollToBottom: false }));
+            act(() => result.current.ref(box.el));
+            act(() => result.current.scrollToBottom({ behavior: 'smooth' }));
+
+            expect(scrollTo).toHaveBeenCalledWith({ top: 500, behavior: 'smooth' });
+        });
+
+        it('jumps instantly instead when the reader asked for reduced motion', () => {
+            stubMatchMedia(true);
+            const box = makeScrollable({ scrollTop: 0 });
+            const scrollTo = vi.fn();
+            box.el.scrollTo = scrollTo as unknown as typeof box.el.scrollTo;
+
+            const { result } = renderHook(() => useScrollAnchor({ initialScrollToBottom: false }));
+            act(() => result.current.ref(box.el));
+            act(() => result.current.scrollToBottom({ behavior: 'smooth' }));
+
+            expect(scrollTo).not.toHaveBeenCalled();
+            expect(box.scrollTop()).toBe(500);
+            expect(result.current.isAtBottom).toBe(true);
+        });
+    });
+
+    it('clears the pending anchor timer when the component unmounts', () => {
+        vi.useFakeTimers();
+        try {
+            const box = makeScrollable();
+            const { result, unmount } = renderHook(() => useScrollAnchor());
+            act(() => result.current.ref(box.el));
+            act(() => result.current.prepend(() => undefined));
+
+            unmount();
+
+            expect(vi.getTimerCount()).toBe(0);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('detaches listeners when the container unmounts (callback ref null)', () => {

@@ -1,4 +1,5 @@
 import { idbGet, idbRemove, idbSet, idbSupported } from './db';
+import { createDisposeScheduler } from '../internal/disposeWhenUnused';
 import { createKeyedCache } from '../internal/keyedCache';
 import { createLazyStore } from '../internal/lazyStore';
 
@@ -20,9 +21,15 @@ export function channelName(dbName: string, storeName: string, key: string): str
     return ['react-kithooks:idb', dbName, storeName, key].join(':');
 }
 
-function createStore<T>(dbName: string, storeName: string, key: string): IndexedDBStore<T> {
+function createStore<T>(
+    dbName: string,
+    storeName: string,
+    key: string,
+    onDisposable: (store: IndexedDBStore<T>) => void
+): IndexedDBStore<T> {
     let entry: IndexedDBEntry<T> = { status: 'loading', value: undefined };
     let channel: BroadcastChannel | null = null;
+    let inFlight = 0;
 
     const load = async () => {
         if (!idbSupported()) {
@@ -53,40 +60,60 @@ function createStore<T>(dbName: string, storeName: string, key: string): Indexed
         channel = null;
     };
 
+    const write = async (op: () => Promise<void>, next: T | undefined) => {
+        inFlight += 1;
+
+        try {
+            await op();
+            entry = { status: 'ready', value: next };
+            lazyStore.notify();
+            channel?.postMessage('changed');
+        } catch (err) {
+            entry = { status: 'error', value: entry.value };
+            lazyStore.notify();
+            throw err;
+        } finally {
+            inFlight -= 1;
+            scheduleDispose();
+        }
+    };
+
+    const store: IndexedDBStore<T> = {
+        getSnapshot: () => entry,
+        subscribe: listener => lazyStore.subscribe(listener),
+        set: value => write(() => idbSet(dbName, storeName, key, value), value),
+        remove: () => write(() => idbRemove(dbName, storeName, key), undefined),
+    };
+
+    const scheduleDispose = createDisposeScheduler(
+        () => lazyStore.size === 0 && inFlight === 0,
+        () => onDisposable(store)
+    );
+
     const lazyStore = createLazyStore(
         () => {
             attachChannel();
             void load();
         },
-        () => detachChannel()
+        () => {
+            detachChannel();
+            scheduleDispose();
+        }
     );
 
-    const set = async (value: T) => {
-        await idbSet(dbName, storeName, key, value);
-        entry = { status: 'ready', value };
-        lazyStore.notify();
-        channel?.postMessage('changed');
-    };
-
-    const remove = async () => {
-        await idbRemove(dbName, storeName, key);
-        entry = { status: 'ready', value: undefined };
-        lazyStore.notify();
-        channel?.postMessage('changed');
-    };
-
-    return {
-        getSnapshot: () => entry,
-        subscribe: lazyStore.subscribe,
-        set,
-        remove,
-    };
+    return store;
 }
 
 const dbCache = createKeyedCache((dbName: string) =>
-    createKeyedCache((storeName: string) =>
-        createKeyedCache((key: string) => createStore<unknown>(dbName, storeName, key))
-    )
+    createKeyedCache((storeName: string) => {
+        const keys = createKeyedCache((key: string) =>
+            createStore<unknown>(dbName, storeName, key, store => {
+                if (keys.peek(key) === store) keys.delete(key);
+            })
+        );
+
+        return keys;
+    })
 );
 
 export function getIndexedDBStore<T>(

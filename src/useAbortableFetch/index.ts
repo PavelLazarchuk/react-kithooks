@@ -2,6 +2,7 @@ import type { DependencyList } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { errorName } from '../internal/errorName';
+import { isDev } from '../internal/isDev';
 
 export type UseAbortableFetchStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -47,6 +48,18 @@ export function useAbortableFetch<T>(
     fetcherRef.current = fetcher;
     const controllerRef = useRef<AbortController | null>(null);
     const requestIdRef = useRef(0);
+
+    const depsLengthRef = useRef(deps.length);
+
+    if (isDev && depsLengthRef.current !== deps.length) {
+        console.warn(
+            `[react-kithooks] useAbortableFetch: the deps array changed length ` +
+                `(${depsLengthRef.current} → ${deps.length}). It must be the same length on ` +
+                `every render — build it unconditionally and use a stable placeholder ` +
+                `(null/undefined) instead of adding or removing entries.`
+        );
+        depsLengthRef.current = deps.length;
+    }
 
     const run = useCallback(() => {
         controllerRef.current?.abort();

@@ -7,6 +7,7 @@ import type { IndexedDBEntry, IndexedDBStatus } from './store';
 export interface UseIndexedDBOptions {
     dbName?: string;
     storeName?: string;
+    onError?: (error: unknown) => void;
 }
 
 export type UseIndexedDBStatus = IndexedDBStatus;
@@ -41,9 +42,13 @@ const SERVER_SNAPSHOT: IndexedDBEntry<never> = { status: 'loading', value: undef
  * database version to add a *new* store to an *existing* database — so
  * several hooks can share one `dbName` with different `storeName`s without
  * hand-rolled `onupgradeneeded` migrations. Uses its own database
- * (`"react-kithooks-kv"` by default), separate from `useFormCrashRecovery`'s
+ * (`"react-kithooks:db"` by default), separate from `useFormCrashRecovery`'s
  * internal one, so the two features can't bump each other's version out from
  * under one another.
+ *
+ * A failed write surfaces as `status: 'error'` and rejects the promise
+ * `setValue`/`removeValue` returned. Await that promise, or pass `onError`
+ * and use the `void setValue(…)` form.
  */
 export function useIndexedDB<T>(
     key: string,
@@ -81,8 +86,19 @@ export function useIndexedDB<T>(
     const value =
         entry.status === 'ready' && entry.value !== undefined ? entry.value : getInitial();
 
+    const onErrorRef = useRef(options.onError);
+    onErrorRef.current = options.onError;
+
+    const withErrorHandler = useCallback((promise: Promise<void>): Promise<void> => {
+        const onError = onErrorRef.current;
+
+        if (onError) promise.catch(error => onError(error));
+
+        return promise;
+    }, []);
+
     const setValue = useCallback(
-        async (next: T | ((prev: T) => T)) => {
+        (next: T | ((prev: T) => T)) => {
             const current = store.getSnapshot();
             const prev =
                 current.status === 'ready' && current.value !== undefined
@@ -90,12 +106,15 @@ export function useIndexedDB<T>(
                     : getInitial();
             const resolved = typeof next === 'function' ? (next as (prev: T) => T)(prev) : next;
 
-            await store.set(resolved);
+            return withErrorHandler(store.set(resolved));
         },
-        [store] // eslint-disable-line react-hooks/exhaustive-deps
+        [store, withErrorHandler] // eslint-disable-line react-hooks/exhaustive-deps
     );
 
-    const removeValue = useCallback(() => store.remove(), [store]);
+    const removeValue = useCallback(
+        () => withErrorHandler(store.remove()),
+        [store, withErrorHandler]
+    );
 
     return [value, setValue, removeValue, entry.status];
 }

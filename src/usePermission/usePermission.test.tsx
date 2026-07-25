@@ -169,6 +169,89 @@ describe('usePermission', () => {
         expect(result.current.isDenied).toBe(true);
     });
 
+    describe('geolocation request outcomes', () => {
+        function stubGeolocation(
+            impl: (
+                success: PositionCallback,
+                error: (err: { code: number; PERMISSION_DENIED: number }) => void
+            ) => void
+        ) {
+            Object.defineProperty(navigator, 'geolocation', {
+                value: { getCurrentPosition: vi.fn(impl) },
+                configurable: true,
+            });
+        }
+
+        afterEach(() => {
+            delete (navigator as any).geolocation;
+        });
+
+        it('treats a fix as an authoritative grant', async () => {
+            stubPermissionsQuery(() => Promise.reject(new TypeError('unsupported')));
+            stubGeolocation(success => success({} as GeolocationPosition));
+
+            const { result } = renderHook(() => usePermission('geolocation'));
+            await flush();
+
+            let outcome: string | undefined;
+            await act(async () => {
+                outcome = await result.current.request();
+            });
+
+            expect(outcome).toBe('granted');
+            expect(result.current.status).toBe('granted');
+        });
+
+        it('treats PERMISSION_DENIED as an authoritative denial', async () => {
+            stubPermissionsQuery(() => Promise.reject(new TypeError('unsupported')));
+            stubGeolocation((_success, error) => error({ code: 1, PERMISSION_DENIED: 1 }));
+
+            const { result } = renderHook(() => usePermission('geolocation'));
+            await flush();
+
+            let outcome: string | undefined;
+            await act(async () => {
+                outcome = await result.current.request();
+            });
+
+            expect(outcome).toBe('denied');
+            expect(result.current.isDenied).toBe(true);
+        });
+
+        it('does not report a grant when the request merely timed out', async () => {
+            stubPermissionsQuery(() => Promise.reject(new TypeError('unsupported')));
+            stubGeolocation((_success, error) => error({ code: 3, PERMISSION_DENIED: 1 }));
+
+            const { result } = renderHook(() => usePermission('geolocation'));
+            await flush();
+
+            let outcome: string | undefined;
+            await act(async () => {
+                outcome = await result.current.request();
+            });
+
+            expect(outcome).toBe('prompt');
+            expect(result.current.isGranted).toBe(false);
+        });
+
+        it('lets the Permissions API decide after a non-denial error', async () => {
+            const status = new FakePermissionStatus('prompt');
+            stubPermissionsQuery(() => Promise.resolve(status));
+            stubGeolocation((_success, error) => error({ code: 2, PERMISSION_DENIED: 1 }));
+
+            const { result } = renderHook(() => usePermission('geolocation'));
+            await flush();
+
+            let outcome: string | undefined;
+            await act(async () => {
+                outcome = await result.current.request();
+            });
+
+            expect(outcome).toBe('prompt');
+            expect(result.current.status).toBe('prompt');
+        });
+    });
+
     it('does not treat a missing device (NotFoundError) as a denial', async () => {
         const status = new FakePermissionStatus('prompt');
         stubPermissionsQuery(() => Promise.resolve(status));

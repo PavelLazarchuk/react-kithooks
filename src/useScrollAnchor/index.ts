@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefCallback } from 'react';
 
 import { anchoredScrollTop, clampScrollTop, isNearBottom } from './math';
@@ -14,11 +14,6 @@ export interface UseScrollAnchorOptions {
 export interface UseScrollAnchorReturn<T extends HTMLElement = HTMLDivElement> {
     ref: RefCallback<T>;
     isAtBottom: boolean;
-    /**
-     * Wrap the state update that prepends items:
-     *   prepend(() => setMessages([...older, ...messages]))
-     * Captures the anchor before the update and restores scroll after the DOM commit.
-     */
     prepend: (mutate: () => void) => void;
     scrollToBottom: (opts?: { behavior?: ScrollBehavior }) => void;
 }
@@ -32,6 +27,14 @@ interface PendingAnchor {
 const SETTLE_WINDOW_MS = 2000;
 const PENDING_TIMEOUT_MS = 1000;
 const SMOOTH_SCROLL_MAX_MS = 1000;
+
+function prefersReducedMotion(): boolean {
+    return (
+        typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    );
+}
 
 export function useScrollAnchor<T extends HTMLElement = HTMLDivElement>(
     options: UseScrollAnchorOptions = {}
@@ -84,7 +87,8 @@ export function useScrollAnchor<T extends HTMLElement = HTMLDivElement>(
 
             if (!el) return;
 
-            const behavior = opts?.behavior ?? optsRef.current.behavior ?? 'auto';
+            const requested = opts?.behavior ?? optsRef.current.behavior ?? 'auto';
+            const behavior = requested === 'smooth' && prefersReducedMotion() ? 'auto' : requested;
             const top = el.scrollHeight - el.clientHeight;
 
             if (behavior === 'smooth' && typeof el.scrollTo === 'function') {
@@ -287,6 +291,13 @@ export function useScrollAnchor<T extends HTMLElement = HTMLDivElement>(
 
         mutate();
     }, []);
+
+    useEffect(
+        () => () => {
+            if (pendingTimerRef.current !== null) clearTimeout(pendingTimerRef.current);
+        },
+        []
+    );
 
     return { ref, isAtBottom, prepend, scrollToBottom };
 }

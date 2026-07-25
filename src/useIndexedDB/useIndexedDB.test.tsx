@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { IDBFactory } from 'fake-indexeddb';
 
@@ -175,6 +175,54 @@ describe('useIndexedDB', () => {
         const foreign = new BroadcastChannel(channelName('db-13', DEFAULT_STORE_NAME, 'count'));
         expect(() => foreign.postMessage('changed')).not.toThrow();
         foreign.close();
+    });
+
+    describe('when a write fails', () => {
+        const unclonable = { fn: () => undefined } as unknown as number;
+
+        it('reports status error and still rejects the returned promise', async () => {
+            const { result } = renderHook(() =>
+                useIndexedDB<number>('count', 0, { dbName: 'db-err-1' })
+            );
+            await waitFor(() => expect(result.current[3]).toBe('ready'));
+
+            await act(async () => {
+                await expect(result.current[1](unclonable)).rejects.toBeTruthy();
+            });
+
+            expect(result.current[3]).toBe('error');
+        });
+
+        it('routes the failure to onError, which makes void setValue(…) safe', async () => {
+            const onError = vi.fn();
+            const { result } = renderHook(() =>
+                useIndexedDB<number>('count', 0, { dbName: 'db-err-2', onError })
+            );
+            await waitFor(() => expect(result.current[3]).toBe('ready'));
+
+            await act(async () => {
+                void result.current[1](unclonable);
+                await new Promise(resolve => setTimeout(resolve, 0));
+            });
+
+            expect(onError).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    it('releases a store once nothing observes it', async () => {
+        const { getIndexedDBStore } = await import('./store');
+        const { result, unmount } = renderHook(() =>
+            useIndexedDB('count', 0, { dbName: 'db-life' })
+        );
+        await waitFor(() => expect(result.current[3]).toBe('ready'));
+
+        const before = getIndexedDBStore('db-life', DEFAULT_STORE_NAME, 'count');
+        unmount();
+        await act(async () => {
+            await Promise.resolve();
+        });
+
+        expect(getIndexedDBStore('db-life', DEFAULT_STORE_NAME, 'count')).not.toBe(before);
     });
 
     it('re-resolves the initial value when key changes dynamically', async () => {

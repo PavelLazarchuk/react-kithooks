@@ -125,4 +125,46 @@ describe('useAbortableFetch', () => {
         act(() => result.current.refetch());
         await waitFor(() => expect(result.current.data).toBe('call-2'));
     });
+
+    describe('deps array misuse', () => {
+        it('names the hook when the deps array changes length', async () => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+            const fetcher = vi.fn(async () => 'ok');
+
+            try {
+                const { rerender } = renderHook(
+                    ({ deps }: { deps: unknown[] }) => useAbortableFetch(fetcher, deps),
+                    { initialProps: { deps: ['a'] as unknown[] } }
+                );
+
+                expect(warn).not.toHaveBeenCalled();
+
+                rerender({ deps: ['a', 'b'] });
+
+                expect(warn).toHaveBeenCalledTimes(1);
+                expect(String(warn.mock.calls[0]?.[0])).toContain('useAbortableFetch');
+            } finally {
+                warn.mockRestore();
+            }
+        });
+
+        it('stays quiet while the length is stable', () => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+            const fetcher = vi.fn(async () => 'ok');
+
+            try {
+                const { rerender } = renderHook(
+                    ({ id }: { id: number }) => useAbortableFetch(fetcher, [id]),
+                    { initialProps: { id: 1 } }
+                );
+
+                rerender({ id: 2 });
+                rerender({ id: 3 });
+
+                expect(warn).not.toHaveBeenCalled();
+            } finally {
+                warn.mockRestore();
+            }
+        });
+    });
 });
