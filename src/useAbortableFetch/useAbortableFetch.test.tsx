@@ -1,0 +1,128 @@
+import { describe, expect, it, vi } from 'vitest';
+import { act, renderHook, waitFor } from '@testing-library/react';
+
+import { useAbortableFetch } from './index';
+
+function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    return { promise, resolve, reject };
+}
+
+describe('useAbortableFetch', () => {
+    it('starts idle and never calls the fetcher when disabled', () => {
+        const fetcher = vi.fn();
+        const { result } = renderHook(() => useAbortableFetch(fetcher, [], { enabled: false }));
+
+        expect(result.current.status).toBe('idle');
+        expect(fetcher).not.toHaveBeenCalled();
+    });
+
+    it('runs on mount and resolves to success', async () => {
+        const fetcher = vi.fn(async () => 'value');
+        const { result } = renderHook(() => useAbortableFetch(fetcher, []));
+
+        expect(result.current.isLoading).toBe(true);
+        await waitFor(() => expect(result.current.status).toBe('success'));
+        expect(result.current.data).toBe('value');
+    });
+
+    it('surfaces a rejection as the error status', async () => {
+        const fetcher = vi.fn(async () => {
+            throw new Error('boom');
+        });
+        const { result } = renderHook(() => useAbortableFetch(fetcher, []));
+
+        await waitFor(() => expect(result.current.status).toBe('error'));
+        expect(result.current.error).toBeInstanceOf(Error);
+    });
+
+    it('ignores a stale response that resolves after a newer one', async () => {
+        const first = deferred<string>();
+        const second = deferred<string>();
+        const fetcher = vi
+            .fn<(signal: AbortSignal) => Promise<string>>()
+            .mockReturnValueOnce(first.promise)
+            .mockReturnValueOnce(second.promise);
+
+        const { result, rerender } = renderHook(({ id }) => useAbortableFetch(fetcher, [id]), {
+            initialProps: { id: 1 },
+        });
+
+        rerender({ id: 2 });
+        second.resolve('second');
+        await waitFor(() => expect(result.current.status).toBe('success'));
+
+        first.resolve('first');
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(result.current.data).toBe('second');
+    });
+
+    it('aborts the in-flight call when deps change', () => {
+        const abortSpy = vi.fn();
+        const fetcher = vi.fn((signal: AbortSignal) => {
+            signal.addEventListener('abort', abortSpy);
+            return new Promise<string>(() => undefined);
+        });
+
+        const { rerender } = renderHook(({ id }) => useAbortableFetch(fetcher, [id]), {
+            initialProps: { id: 1 },
+        });
+        rerender({ id: 2 });
+
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('aborts the in-flight call on unmount', () => {
+        const abortSpy = vi.fn();
+        const fetcher = vi.fn((signal: AbortSignal) => {
+            signal.addEventListener('abort', abortSpy);
+            return new Promise<string>(() => undefined);
+        });
+
+        const { unmount } = renderHook(() => useAbortableFetch(fetcher, []));
+        unmount();
+
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores an AbortError instead of surfacing it as the error status', async () => {
+        const fetcher = vi.fn(
+            (signal: AbortSignal) =>
+                new Promise<string>((_, reject) => {
+                    signal.addEventListener('abort', () =>
+                        reject(new DOMException('aborted', 'AbortError'))
+                    );
+                })
+        );
+
+        const { result, rerender } = renderHook(({ id }) => useAbortableFetch(fetcher, [id]), {
+            initialProps: { id: 1 },
+        });
+        rerender({ id: 2 });
+
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(result.current.status).not.toBe('error');
+    });
+
+    it('refetch aborts the previous call and starts a fresh one', async () => {
+        let callCount = 0;
+        const fetcher = vi.fn(async () => {
+            callCount += 1;
+            return `call-${callCount}`;
+        });
+        const { result } = renderHook(() => useAbortableFetch(fetcher, []));
+        await waitFor(() => expect(result.current.status).toBe('success'));
+
+        act(() => result.current.refetch());
+        await waitFor(() => expect(result.current.data).toBe('call-2'));
+    });
+});

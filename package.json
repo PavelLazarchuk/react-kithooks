@@ -1,0 +1,148 @@
+{
+    "name": "react-kithooks",
+    "version": "1.0.0",
+    "description": "Kit for React hooks",
+    "license": "MIT",
+    "sideEffects": false,
+    "type": "module",
+    "engines": {
+        "node": ">=20"
+    },
+    "files": [
+        "dist"
+    ],
+    "publishConfig": {
+        "access": "public",
+        "provenance": true
+    },
+    "exports": {
+        ".": {
+            "import": {
+                "types": "./dist/index.d.ts",
+                "default": "./dist/index.js"
+            },
+            "require": {
+                "types": "./dist/index.d.cts",
+                "default": "./dist/index.cjs"
+            }
+        },
+        "./useFormCrashRecovery/rhf": {
+            "import": {
+                "types": "./dist/useFormCrashRecovery/rhf.d.ts",
+                "default": "./dist/useFormCrashRecovery/rhf.js"
+            },
+            "require": {
+                "types": "./dist/useFormCrashRecovery/rhf.d.cts",
+                "default": "./dist/useFormCrashRecovery/rhf.cjs"
+            }
+        },
+        "./use*": {
+            "import": {
+                "types": "./dist/use*/index.d.ts",
+                "default": "./dist/use*/index.js"
+            },
+            "require": {
+                "types": "./dist/use*/index.d.cts",
+                "default": "./dist/use*/index.cjs"
+            }
+        },
+        "./package.json": "./package.json"
+    },
+    "typesVersions": {
+        "*": {
+            "useFormCrashRecovery/rhf": [
+                "./dist/useFormCrashRecovery/rhf.d.ts"
+            ],
+            "use*": [
+                "./dist/use*/index.d.ts"
+            ]
+        }
+    },
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "scripts": {
+        "build": "tsup",
+        "dev": "tsup --watch",
+        "typecheck": "tsc --noEmit",
+        "lint": "eslint .",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "check-exports": "publint && attw --pack .",
+        "pack:verify": "npm pack --dry-run",
+        "changeset": "changeset",
+        "release": "npm run build && node scripts/publish-if-new.mjs",
+        "prepare": "husky"
+    },
+    "peerDependencies": {
+        "react": ">=18",
+        "react-hook-form": ">=7"
+    },
+    "peerDependenciesMeta": {
+        "react-hook-form": {
+            "optional": true
+        }
+    },
+    "keywords": [
+        "react",
+        "hooks",
+        "typescript",
+        "scroll-anchor",
+        "chat-scroll",
+        "permissions",
+        "keyboard-shortcuts",
+        "hotkeys",
+        "indexeddb",
+        "form-recovery",
+        "form-persist",
+        "local-storage",
+        "session-storage",
+        "multi-tab",
+        "storage-sync",
+        "online-status",
+        "network-status",
+        "fetch",
+        "abort-controller",
+        "race-condition",
+        "debounce",
+        "media-query",
+        "responsive",
+        "use-previous"
+    ],
+    "author": "Pavel Lazarchuk",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/pavellazarchuk/react-kithooks.git"
+    },
+    "bugs": {
+        "url": "https://github.com/pavellazarchuk/react-kithooks/issues"
+    },
+    "homepage": "https://github.com/pavellazarchuk/react-kithooks#readme",
+    "devDependencies": {
+        "@arethetypeswrong/cli": "^0.18.5",
+        "@changesets/cli": "^2.31.1",
+        "@eslint/js": "^10.0.1",
+        "@testing-library/dom": "^10.4.1",
+        "@testing-library/react": "^16.3.2",
+        "@types/react": "^19.2.17",
+        "@types/react-dom": "^19.2.3",
+        "eslint": "^10.7.0",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-react-hooks": "^7.1.1",
+        "fake-indexeddb": "^6.2.5",
+        "husky": "^9.1.7",
+        "jsdom": "^29.1.1",
+        "lint-staged": "^17.0.8",
+        "prettier": "^3.9.5",
+        "publint": "^0.3.21",
+        "react": "^19.2.7",
+        "react-dom": "^19.2.7",
+        "react-hook-form": "^7.81.0",
+        "tsup": "^8.5.1",
+        "typescript": "^6.0.3",
+        "typescript-eslint": "^8.64.0",
+        "vitest": "^4.1.10"
+    }
+}
