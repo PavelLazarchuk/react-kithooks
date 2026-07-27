@@ -1,5 +1,11 @@
 # react-kithooks
 
+## 1.2.0
+
+### Minor Changes
+
+- 3921736: Add `usePolling` — interval polling that never overlaps ticks, pauses on a hidden tab and while offline (resuming only when a tick is actually due), and backs off exponentially with jitter on consecutive failures. Superseded responses are discarded via the same run-id guard `useAbortableFetch` uses.
+
 ## 1.1.0
 
 ### Minor Changes
