@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
 import { useOnlineStatus } from './index';
-import { resetOnlineStatusStore } from './store';
+import { resetOnlineStatusStore } from '../internal/onlineStatusStore';
 
 function setNavigatorOnLine(value: boolean) {
     Object.defineProperty(navigator, 'onLine', { value, configurable: true });

@@ -100,6 +100,7 @@ import { useScrollAnchor, useLocalStorage } from 'react-kithooks';
 | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [useAbortableFetch](docs/useAbortableFetch/README.md)       | The stale-response race in `useEffect(() => { fetch(url).then(setData) }, [id])` — superseded responses are discarded even when abort is ignored. |
 | [useAsyncQueue](docs/useAsyncQueue/README.md)               | Overlapping writes finishing out of order. Concurrency 1, per key, outside the React tree.                                                        |
+| [usePolling](docs/usePolling/README.md)                     | `setInterval` + `fetch`: overlapping ticks, a hidden tab polling all day, and a failing endpoint hammered at full rate.                           |
 | [useDebouncedValue](docs/useDebouncedValue/README.md)       | Debounce that also cancels when the value reverts within the window — type-and-undo produces no update.                                           |
 | [useDebouncedCallback](docs/useDebouncedCallback/README.md) | Stable identity, always calls the latest `fn`, with `flush`/`cancel`/`isPending`.                                                                 |
 
@@ -126,6 +127,7 @@ All hooks touch `window`/`document`/`navigator` only inside effects or callback 
 | `useFormCrashRecovery`                  | `{ recovered: null, status: 'idle' }` |
 | `useAbortableFetch`                     | `status: 'idle'`                      |
 | `useAsyncQueue`                         | `{ status: 'idle', pending: 0 }`      |
+| `usePolling`                            | `status: 'idle'`, `isPaused: false`   |
 | `useDebouncedValue`                     | the current value                     |
 | `useIsFirstRender`                      | `true`                                |
 | `usePreviousValue`                      | `undefined`                           |

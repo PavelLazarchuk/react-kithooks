@@ -54,6 +54,9 @@ export type {
     UseAbortableFetchStatus,
 } from './useAbortableFetch';
 
+export { usePolling } from './usePolling';
+export type { UsePollingOptions, UsePollingReturn, UsePollingStatus } from './usePolling';
+
 export { useDebouncedValue } from './useDebouncedValue';
 
 export { useDebouncedCallback } from './useDebouncedCallback';

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
-import { getOnlineStatusStore } from './store';
+import { getOnlineStatusStore } from '../internal/onlineStatusStore';
 
 export interface UseOnlineStatusOptions {
     pingUrl?: string;

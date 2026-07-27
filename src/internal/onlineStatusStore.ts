@@ -1,4 +1,4 @@
-import { createLazyStore } from '../internal/lazyStore';
+import { createLazyStore } from './lazyStore';
 
 export interface OnlineStatusStore {
     getSnapshot: () => boolean;
