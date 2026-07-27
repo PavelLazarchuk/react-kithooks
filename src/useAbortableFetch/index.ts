@@ -51,6 +51,12 @@ export function useAbortableFetch<T>(
 
     useDepsLengthWarning('useAbortableFetch', deps);
 
+    const cancel = useCallback(() => {
+        controllerRef.current?.abort();
+        controllerRef.current = null;
+        requestIdRef.current += 1;
+    }, []);
+
     const run = useCallback(() => {
         controllerRef.current?.abort();
         const controller = new AbortController();
@@ -76,7 +82,7 @@ export function useAbortableFetch<T>(
 
     useEffect(() => {
         if (!enabled) {
-            controllerRef.current?.abort();
+            cancel();
             setState(prev => (prev.status === 'loading' ? { ...prev, status: 'idle' } : prev));
 
             return;
@@ -84,8 +90,8 @@ export function useAbortableFetch<T>(
 
         run();
 
-        return () => controllerRef.current?.abort();
-    }, [enabled, run, ...deps]); // eslint-disable-line react-hooks/exhaustive-deps
+        return cancel;
+    }, [enabled, run, cancel, ...deps]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return {
         data: state.data,

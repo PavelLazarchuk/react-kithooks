@@ -10,14 +10,9 @@ export function createKeyedCache<K, V>(factory: (key: K) => V): KeyedCache<K, V>
 
     return {
         get: key => {
-            let value = cache.get(key);
+            if (!cache.has(key)) cache.set(key, factory(key));
 
-            if (!value) {
-                value = factory(key);
-                cache.set(key, value);
-            }
-
-            return value;
+            return cache.get(key) as V;
         },
         peek: key => cache.get(key),
         delete: key => {

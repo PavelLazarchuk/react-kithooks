@@ -71,6 +71,25 @@ describe('paths helpers', () => {
         expect(dropped).toEqual(['cb', 'nested.fn']);
     });
 
+    it('stripNonCloneable cleans EVERY occurrence of a shared reference, not just the first', () => {
+        const shared = { fn: () => 1, keep: 'yes' };
+        const { cleaned } = stripNonCloneable({ a: shared, b: shared });
+
+        expect(cleaned).toEqual({ a: { keep: 'yes' }, b: { keep: 'yes' } });
+        expect((cleaned.b as { fn?: unknown }).fn).toBeUndefined();
+    });
+
+    it('stripNonCloneable terminates on cyclic input', () => {
+        const node: Record<string, unknown> = { keep: 'yes', fn: () => 1 };
+        node.self = node;
+
+        const { cleaned } = stripNonCloneable(node) as { cleaned: Record<string, unknown> };
+
+        expect(cleaned.keep).toBe('yes');
+        expect(cleaned.fn).toBeUndefined();
+        expect(cleaned.self).toBe(cleaned);
+    });
+
     it('deepMergeDefined keeps a base value for a key the overrides object is missing entirely', () => {
         const base = { card: { number: '4242', name: 'P L' }, title: 'live edit' };
         const overrides = { card: { name: 'P L' } } as Partial<typeof base>;
@@ -288,6 +307,31 @@ describe('useFormCrashRecovery', () => {
             expect(rec?.data.title).toBe('step-1 edit');
         });
         expect(await idbGet('rk:step-2')).toBeUndefined();
+    });
+
+    it('does not announce a mid-debounce flush of the OLD key on the NEW key’s channel', async () => {
+        const onStep2 = vi.fn();
+        const listener = new BroadcastChannel('rk:step-2');
+        listener.onmessage = onStep2;
+
+        const { result, rerender } = renderHook(
+            ({ value, key }: { value: Draft; key: string }) =>
+                useFormCrashRecovery<Draft>(value, { key, debounceMs: 50 }),
+            { initialProps: { value: { title: '' }, key: 'step-1' } }
+        );
+        await waitFor(() => expect(result.current.status).toBe('idle'));
+
+        rerender({ value: { title: 'step-1 edit' }, key: 'step-1' });
+        rerender({ value: { title: '' }, key: 'step-2' });
+
+        await waitFor(async () => {
+            const rec = await idbGet<any>('rk:step-1');
+            expect(rec?.data.title).toBe('step-1 edit');
+        });
+        await act(async () => {});
+
+        expect(onStep2).not.toHaveBeenCalled();
+        listener.close();
     });
 
     it('pauses persistence while a recovered draft is unconsumed, to avoid silently overwriting it', async () => {

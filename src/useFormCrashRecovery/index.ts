@@ -124,7 +124,7 @@ export function useFormCrashRecovery<T extends Record<string, unknown>>(
     const stoppedRef = useRef(false);
     const persistDisabledRef = useRef(false);
     const hasWrittenRef = useRef(false);
-    const channelRef = useRef<BroadcastChannel | null>(null);
+    const channelRef = useRef<{ key: string; channel: BroadcastChannel } | null>(null);
 
     const cancelTimer = useCallback(() => {
         if (timerRef.current !== null) {
@@ -146,6 +146,8 @@ export function useFormCrashRecovery<T extends Record<string, unknown>>(
         const pending = pendingRef.current;
 
         if (!pending || stoppedRef.current || persistDisabledRef.current) return;
+
+        const channelEntry = channelRef.current;
 
         const record: DraftRecord<T> = {
             data: omitPaths(pending.value, pending.exclude),
@@ -177,10 +179,18 @@ export function useFormCrashRecovery<T extends Record<string, unknown>>(
 
             pendingRef.current = null;
             hasWrittenRef.current = true;
-            channelRef.current?.postMessage({
-                tabId: record.tabId,
-                savedAt: record.savedAt,
-            } satisfies ConflictMessage);
+
+            if (channelEntry?.key === pending.fullKey) {
+                try {
+                    channelEntry.channel.postMessage({
+                        tabId: record.tabId,
+                        savedAt: record.savedAt,
+                    } satisfies ConflictMessage);
+                } catch {
+                    // empty
+                }
+            }
+
             setLastSavedAt(record.savedAt);
             setStatus('saved');
         } catch (err) {
@@ -235,11 +245,6 @@ export function useFormCrashRecovery<T extends Record<string, unknown>>(
     }, [fullKey, disabled, setRecoveredSynced]);
 
     // --- flush on key change, before the page can die, or on unmount -----------
-    // Declared BEFORE the broadcast-channel effect below: React runs effect
-    // cleanups in declaration order, and flush()'s postMessage needs the
-    // channel to still be open. If this ran after the channel effect's
-    // cleanup (which closes the channel), the final flush on unmount — or on
-    // every key change — could never notify other tabs of the write.
     useEffect(() => {
         return () => {
             void flush();
@@ -266,7 +271,7 @@ export function useFormCrashRecovery<T extends Record<string, unknown>>(
             optsRef.current.onConflict?.({ otherTabSavedAt: msg.savedAt });
         };
 
-        channelRef.current = channel;
+        channelRef.current = { key: fullKey, channel };
 
         return () => {
             channelRef.current = null;

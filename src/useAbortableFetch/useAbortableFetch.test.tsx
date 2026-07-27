@@ -92,6 +92,28 @@ describe('useAbortableFetch', () => {
         expect(abortSpy).toHaveBeenCalledTimes(1);
     });
 
+    it('discards a result from a fetcher that ignored its abort signal after being disabled', async () => {
+        const inFlight = deferred<string>();
+        const fetcher = vi.fn(() => inFlight.promise);
+
+        const { result, rerender } = renderHook(
+            ({ enabled }: { enabled: boolean }) => useAbortableFetch(fetcher, [], { enabled }),
+            { initialProps: { enabled: true } }
+        );
+        expect(result.current.isLoading).toBe(true);
+
+        rerender({ enabled: false });
+        expect(result.current.status).toBe('idle');
+
+        inFlight.resolve('stale');
+        await act(async () => {
+            await Promise.resolve();
+        });
+
+        expect(result.current.status).toBe('idle');
+        expect(result.current.data).toBeUndefined();
+    });
+
     it('ignores an AbortError instead of surfacing it as the error status', async () => {
         const fetcher = vi.fn(
             (signal: AbortSignal) =>

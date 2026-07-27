@@ -22,6 +22,7 @@ function createStore(kind: PermissionKind): PermissionStore {
     let nativeStatus: PermissionStatus | null = null;
     let nativeChangeHandler: (() => void) | null = null;
     let visibilityHandler: (() => void) | null = null;
+    let epoch = 0;
 
     const set = (next: PermissionStatusEx) => {
         if (next === snapshot) return;
@@ -53,16 +54,21 @@ function createStore(kind: PermissionKind): PermissionStore {
             return;
         }
 
+        const startedAt = epoch;
+
         try {
             const status = await navigator.permissions.query({ name: kind as PermissionName });
-            nativeStatus = status;
-            const onChange = () => set(status.state);
-            nativeChangeHandler = onChange;
 
-            if (typeof status.addEventListener === 'function') {
-                status.addEventListener('change', onChange);
-            } else {
-                status.onchange = onChange;
+            if (startedAt === epoch && lazyStore.size > 0 && !nativeStatus) {
+                nativeStatus = status;
+                const onChange = () => set(status.state);
+                nativeChangeHandler = onChange;
+
+                if (typeof status.addEventListener === 'function') {
+                    status.addEventListener('change', onChange);
+                } else {
+                    status.onchange = onChange;
+                }
             }
 
             set(status.state);
@@ -101,10 +107,12 @@ function createStore(kind: PermissionKind): PermissionStore {
 
     const lazyStore = createLazyStore(
         () => {
-            void refresh();
+            epoch += 1;
             attachVisibilityListener();
+            void refresh();
         },
         () => {
+            epoch += 1;
             detachVisibilityListener();
             detachNativeStatusListener();
         }

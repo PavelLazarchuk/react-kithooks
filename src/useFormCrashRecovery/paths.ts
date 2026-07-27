@@ -70,7 +70,7 @@ export function deepMergeDefined<T>(base: T, overrides: Partial<T>): T {
 
 export function stripNonCloneable<T>(value: T): { cleaned: T; dropped: string[] } {
     const dropped: string[] = [];
-    const seen = new WeakSet<object>();
+    const cleanedByInput = new WeakMap<object, unknown>();
 
     const walk = (input: unknown, path: string): unknown => {
         if (typeof input === 'function' || typeof input === 'symbol') {
@@ -79,19 +79,32 @@ export function stripNonCloneable<T>(value: T): { cleaned: T; dropped: string[] 
             return undefined;
         }
         if (input === null || typeof input !== 'object') return input;
-        if (seen.has(input)) return input;
 
-        seen.add(input);
+        const previous = cleanedByInput.get(input);
+
+        if (previous !== undefined) return previous;
 
         if (Array.isArray(input)) {
-            return input.map((item, i) => walk(item, path ? `${path}.${i}` : String(i)));
+            const out: unknown[] = [];
+            cleanedByInput.set(input, out);
+
+            input.forEach((item, i) => {
+                out[i] = walk(item, path ? `${path}.${i}` : String(i));
+            });
+
+            return out;
         }
 
         const proto: unknown = Object.getPrototypeOf(input);
 
-        if (proto !== Object.prototype && proto !== null) return input;
+        if (proto !== Object.prototype && proto !== null) {
+            cleanedByInput.set(input, input);
+
+            return input;
+        }
 
         const out: Record<string, unknown> = {};
+        cleanedByInput.set(input, out);
 
         for (const [key, item] of Object.entries(input)) {
             const next = walk(item, path ? `${path}.${key}` : key);

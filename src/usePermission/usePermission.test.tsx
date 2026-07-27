@@ -124,6 +124,43 @@ describe('usePermission', () => {
         }
     });
 
+    it('does not attach a change listener when the query resolves after the last unmount', async () => {
+        const status = new FakePermissionStatus('prompt');
+        const add = vi.spyOn(status, 'addEventListener');
+        let settle!: (s: FakePermissionStatus) => void;
+        stubPermissionsQuery(
+            () =>
+                new Promise<FakePermissionStatus>(resolve => {
+                    settle = resolve;
+                })
+        );
+
+        const { unmount } = renderHook(() => usePermission('camera'));
+        unmount();
+
+        await act(async () => {
+            settle(status);
+        });
+
+        expect(add).not.toHaveBeenCalled();
+    });
+
+    it('attaches exactly one change listener across repeated mount/unmount cycles', async () => {
+        const status = new FakePermissionStatus('prompt');
+        const add = vi.spyOn(status, 'addEventListener');
+        const remove = vi.spyOn(status, 'removeEventListener');
+        stubPermissionsQuery(() => Promise.resolve(status));
+
+        for (let i = 0; i < 3; i += 1) {
+            const { unmount } = renderHook(() => usePermission('camera'));
+            await flush();
+            unmount();
+        }
+
+        expect(add).toHaveBeenCalledTimes(3);
+        expect(remove).toHaveBeenCalledTimes(3);
+    });
+
     it('request(camera) stops all tracks after a successful probe', async () => {
         const status = new FakePermissionStatus('prompt');
         stubPermissionsQuery(() => Promise.resolve(status));

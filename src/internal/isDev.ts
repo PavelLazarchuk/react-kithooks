@@ -1,4 +1,6 @@
-declare const process: { env: { NODE_ENV?: string } } | undefined;
+declare const process: { env?: { NODE_ENV?: string } } | undefined;
 
 export const isDev: boolean =
-    typeof process !== 'undefined' && process.env.NODE_ENV !== 'production';
+    typeof process !== 'undefined' &&
+    typeof process.env !== 'undefined' &&
+    process.env.NODE_ENV !== 'production';
