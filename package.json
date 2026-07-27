@@ -1,6 +1,6 @@
 {
     "name": "react-kithooks",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "Kit for React hooks",
     "license": "MIT",
     "sideEffects": false,
