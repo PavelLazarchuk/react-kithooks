@@ -1,5 +1,8 @@
 # react-kithooks
 
+[![npm version](https://img.shields.io/npm/v/react-kithooks.svg)](https://www.npmjs.com/package/react-kithooks)
+[![npm downloads](https://img.shields.io/npm/dm/react-kithooks.svg)](https://www.npmjs.com/package/react-kithooks)
+
 Production-grade React hooks for the hard 10% of browser UI — scroll anchoring, permissions, layered keyboard shortcuts, crash-safe form drafts, multi-tab-synced storage, real (not just `navigator.onLine`) connectivity, race-free async — plus the small utilities every app rewrites (debounce, media queries, render bookkeeping) with their known failure modes fixed.
 
 Each hook exists because the naive version has a known failure mode — viewport jumps when chat history loads, permission prompts that can't be re-asked, every modal closing on one Escape, form drafts destroyed by JSON serialization, saves that land out of order.

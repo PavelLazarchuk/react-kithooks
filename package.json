@@ -1,7 +1,7 @@
 {
     "name": "react-kithooks",
     "version": "1.2.1",
-    "description": "Kit for React hooks",
+    "description": "react-kithooks: a TypeScript-first kit of production-grade React hooks — scroll anchoring, keyboard shortcuts, permissions, crash-safe form drafts, multi-tab storage sync, real online status, and race-free async (fetch, queue, polling, debounce). Zero dependencies, SSR-safe.",
     "license": "MIT",
     "sideEffects": false,
     "type": "module",
@@ -88,6 +88,10 @@
     "keywords": [
         "react",
         "hooks",
+        "kithooks",
+        "react-kithooks",
+        "react-hooks",
+        "hooks-library",
         "typescript",
         "scroll-anchor",
         "chat-scroll",
