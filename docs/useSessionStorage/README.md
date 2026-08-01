@@ -40,10 +40,11 @@ function useSessionStorage<T>(
 
 ### Options
 
-| Option        | Type                   | Default          | Description                      |
-| ------------- | ---------------------- | ---------------- | -------------------------------- |
-| `serialize`   | `(value: T) => string` | `JSON.stringify` | How the value is written.        |
-| `deserialize` | `(raw: string) => T`   | `JSON.parse`     | How the raw string is read back. |
+| Option        | Type                   | Default          | Description                                                                      |
+| ------------- | ---------------------- | ---------------- | -------------------------------------------------------------------------------- |
+| `serialize`   | `(value: T) => string` | `JSON.stringify` | How the value is written.                                                        |
+| `deserialize` | `(raw: string) => T`   | `JSON.parse`     | How the raw string is read back.                                                 |
+| `syncTabs`    | `boolean`              | `true`           | Adopt writes from frames/popups sharing this session area. `false` ignores them. |
 
 ### Returns
 
@@ -59,7 +60,7 @@ A tuple:
 
 - Every hook instance in the tab stays in sync, same as `useLocalStorage`.
 - `initialValue` is never written on mount; parse errors and quota failures fall back gracefully instead of throwing. When storage is unavailable or full, the value is kept in memory for the rest of the session rather than silently refusing to change — see [useLocalStorage](../useLocalStorage/README.md) for the details, the behaviour is identical.
-- The native `storage` event still fires for same-origin frames and popups that share this tab's session storage area, so the hook stays reactive there — it just never crosses into an unrelated tab.
+- The native `storage` event still fires for same-origin frames and popups that share this tab's session storage area, so the hook stays reactive there — it just never crosses into an unrelated tab. `syncTabs: false` opts out of even that; instances inside one document stay in sync either way.
 - Prefer this over `useLocalStorage` whenever a value outliving the tab would be a bug rather than a feature.
 
 ## Related

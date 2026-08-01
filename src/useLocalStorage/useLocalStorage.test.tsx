@@ -136,6 +136,93 @@ describe('useLocalStorage', () => {
         expect(result.current[0]).toBe(2);
     });
 
+    describe('syncTabs: false', () => {
+        const isolated = { syncTabs: false };
+
+        it('ignores a cross-tab write', () => {
+            const { result } = renderHook(() => useLocalStorage('count', 0, isolated));
+
+            act(() => simulateCrossTabWrite('count', '9'));
+            expect(result.current[0]).toBe(0);
+        });
+
+        it('ignores another tab calling localStorage.clear()', () => {
+            localStorage.setItem('count', JSON.stringify(5));
+            const { result } = renderHook(() => useLocalStorage('count', 0, isolated));
+
+            act(() => simulateCrossTabWrite(null, null));
+            expect(result.current[0]).toBe(5);
+        });
+
+        it('still reads the pre-existing value on mount and still persists writes', () => {
+            localStorage.setItem('count', JSON.stringify(5));
+            const { result } = renderHook(() => useLocalStorage('count', 0, isolated));
+            expect(result.current[0]).toBe(5);
+
+            act(() => result.current[1](6));
+            expect(result.current[0]).toBe(6);
+            expect(localStorage.getItem('count')).toBe('6');
+        });
+
+        it('still syncs instances within this tab', () => {
+            const a = renderHook(() => useLocalStorage('count', 0, isolated));
+            const b = renderHook(() => useLocalStorage('count', 0, isolated));
+
+            act(() => a.result.current[1](7));
+            expect(b.result.current[0]).toBe(7);
+        });
+
+        it('does not affect a synced instance sharing the same key', () => {
+            const isolatedHook = renderHook(() => useLocalStorage('count', 0, isolated));
+            const syncedHook = renderHook(() => useLocalStorage('count', 0));
+
+            act(() => simulateCrossTabWrite('count', '9'));
+            expect(syncedHook.result.current[0]).toBe(9);
+            expect(isolatedHook.result.current[0]).toBe(0);
+        });
+
+        it('a local write wins over the ignored cross-tab value', () => {
+            const { result } = renderHook(() => useLocalStorage('count', 0, isolated));
+
+            act(() => simulateCrossTabWrite('count', '9'));
+            act(() => result.current[1](1));
+
+            expect(result.current[0]).toBe(1);
+            expect(localStorage.getItem('count')).toBe('1');
+        });
+
+        it('resolves a functional update against the local value, not the other tab', () => {
+            const { result } = renderHook(() => useLocalStorage('count', 0, isolated));
+
+            act(() => result.current[1](1));
+            act(() => simulateCrossTabWrite('count', '100'));
+            act(() => result.current[1](prev => prev + 1));
+
+            expect(result.current[0]).toBe(2);
+        });
+
+        it('keeps setValue identity stable across re-renders', () => {
+            const { result, rerender } = renderHook(() =>
+                useLocalStorage('count', 0, { syncTabs: false })
+            );
+            const first = result.current[1];
+
+            rerender();
+            act(() => result.current[1](1));
+
+            expect(result.current[1]).toBe(first);
+        });
+
+        it('re-writing the value another tab already stored still updates this tab', () => {
+            const { result } = renderHook(() => useLocalStorage('count', 0, isolated));
+
+            act(() => simulateCrossTabWrite('count', '9'));
+            act(() => result.current[1](9));
+
+            expect(result.current[0]).toBe(9);
+        });
+    });
+
     describe('when storage is unavailable or full', () => {
         const original = Object.getOwnPropertyDescriptor(window, 'localStorage')!;
 

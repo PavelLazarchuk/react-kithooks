@@ -153,6 +153,17 @@ describe('useSessionStorage', () => {
         expect(result.current[0]).toBe(2);
     });
 
+    it('syncTabs: false ignores a duplicated-tab write but still persists its own', () => {
+        const { result } = renderHook(() => useSessionStorage('count', 0, { syncTabs: false }));
+
+        act(() => simulateSameTabWrite('count', '9'));
+        expect(result.current[0]).toBe(0);
+
+        act(() => result.current[1](3));
+        expect(result.current[0]).toBe(3);
+        expect(sessionStorage.getItem('count')).toBe('3');
+    });
+
     it('is independent of useLocalStorage for the same key', async () => {
         const { useLocalStorage } = await import('../useLocalStorage/index');
         localStorage.clear();

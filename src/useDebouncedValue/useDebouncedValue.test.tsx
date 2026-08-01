@@ -136,6 +136,166 @@ describe('useDebouncedValue', () => {
         });
     });
 
+    describe('controls', () => {
+        const renderControlled = (initial: string, delay = 300) =>
+            renderHook(({ value }) => useDebouncedValue(value, delay, { controls: true }), {
+                initialProps: { value: initial },
+            });
+
+        it('returns the value alongside the controls', () => {
+            const { result } = renderControlled('a');
+
+            expect(result.current.value).toBe('a');
+            expect(result.current.isPending).toBe(false);
+        });
+
+        it('reports isPending for exactly as long as an update is scheduled', () => {
+            const { result, rerender } = renderControlled('a');
+
+            rerender({ value: 'b' });
+            expect(result.current.isPending).toBe(true);
+
+            act(() => vi.advanceTimersByTime(300));
+            expect(result.current.isPending).toBe(false);
+            expect(result.current.value).toBe('b');
+        });
+
+        it('is not pending when the value reverts within the window', () => {
+            const { result, rerender } = renderControlled('a');
+
+            rerender({ value: 'b' });
+            act(() => vi.advanceTimersByTime(100));
+            rerender({ value: 'a' });
+
+            expect(result.current.isPending).toBe(false);
+        });
+
+        it('flush commits the latest value immediately', () => {
+            const { result, rerender } = renderControlled('a');
+
+            rerender({ value: 'b' });
+            act(() => result.current.flush());
+
+            expect(result.current.value).toBe('b');
+            expect(result.current.isPending).toBe(false);
+        });
+
+        it('flush does not fire the scheduled update a second time', () => {
+            const { result, rerender } = renderControlled('a');
+
+            rerender({ value: 'b' });
+            act(() => result.current.flush());
+            rerender({ value: 'c' });
+            act(() => result.current.flush());
+            act(() => vi.advanceTimersByTime(1000));
+
+            expect(result.current.value).toBe('c');
+        });
+
+        it('flush on a settled value is a no-op', () => {
+            const { result } = renderControlled('a');
+
+            act(() => result.current.flush());
+            expect(result.current.value).toBe('a');
+            expect(result.current.isPending).toBe(false);
+        });
+
+        it('cancel drops the pending update for good', () => {
+            const { result, rerender } = renderControlled('a');
+
+            rerender({ value: 'b' });
+            act(() => result.current.cancel());
+
+            expect(result.current.isPending).toBe(false);
+
+            act(() => vi.advanceTimersByTime(1000));
+            expect(result.current.value).toBe('a');
+        });
+
+        it('debounces again after a cancel when the value changes', () => {
+            const { result, rerender } = renderControlled('a');
+
+            rerender({ value: 'b' });
+            act(() => result.current.cancel());
+            rerender({ value: 'c' });
+
+            act(() => vi.advanceTimersByTime(299));
+            expect(result.current.value).toBe('a');
+
+            act(() => vi.advanceTimersByTime(1));
+            expect(result.current.value).toBe('c');
+            expect(result.current.isPending).toBe(false);
+        });
+
+        it('reports isPending again after a cancelled update resumes', () => {
+            const { result, rerender } = renderControlled('a');
+
+            rerender({ value: 'b' });
+            act(() => result.current.cancel());
+            act(() => rerender({ value: 'c' }));
+
+            expect(result.current.isPending).toBe(true);
+        });
+
+        it('flush commits a value that was cancelled', () => {
+            const { result, rerender } = renderControlled('a');
+
+            rerender({ value: 'b' });
+            act(() => result.current.cancel());
+            act(() => result.current.flush());
+
+            expect(result.current.value).toBe('b');
+            expect(result.current.isPending).toBe(false);
+        });
+
+        it('cancel restarts the maxWaitMs window instead of shortening the next run', () => {
+            const { result, rerender } = renderHook(
+                ({ value }) => useDebouncedValue(value, 300, { maxWaitMs: 1000, controls: true }),
+                { initialProps: { value: 'a' } }
+            );
+            const type = (value: string) => {
+                rerender({ value });
+                act(() => vi.advanceTimersByTime(200));
+            };
+
+            type('a1');
+            type('a2');
+            type('a3');
+            expect(result.current.value).toBe('a');
+
+            act(() => result.current.cancel());
+
+            type('a4');
+            type('a5');
+            type('a6');
+            expect(result.current.value).toBe('a');
+
+            act(() => vi.advanceTimersByTime(300));
+            expect(result.current.value).toBe('a6');
+        });
+
+        it('keeps flush and cancel stable across renders', () => {
+            const { result, rerender } = renderControlled('a');
+            const first = { flush: result.current.flush, cancel: result.current.cancel };
+
+            rerender({ value: 'b' });
+            act(() => vi.advanceTimersByTime(300));
+
+            expect(result.current.flush).toBe(first.flush);
+            expect(result.current.cancel).toBe(first.cancel);
+        });
+
+        it('does not update after unmount', () => {
+            const { result, rerender, unmount } = renderControlled('a');
+            const { flush } = result.current;
+
+            rerender({ value: 'b' });
+            unmount();
+
+            expect(() => act(() => flush())).not.toThrow();
+        });
+    });
+
     it('applies a changed delay to the pending update', () => {
         const { result, rerender } = renderHook(
             ({ value, delay }) => useDebouncedValue(value, delay),

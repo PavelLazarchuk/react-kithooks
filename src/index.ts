@@ -36,12 +36,18 @@ export type { UseSessionStorageOptions, UseSessionStorageReturn } from './useSes
 export { useIndexedDB } from './useIndexedDB';
 export type { UseIndexedDBOptions, UseIndexedDBReturn, UseIndexedDBStatus } from './useIndexedDB';
 
-export { useAsyncQueue, AsyncQueueProvider, AsyncQueueClearedError } from './useAsyncQueue';
+export {
+    useAsyncQueue,
+    AsyncQueueProvider,
+    AsyncQueueClearedError,
+    AsyncQueueReplacedError,
+} from './useAsyncQueue';
 export type {
     UseAsyncQueueOptions,
     UseAsyncQueueReturn,
     AsyncQueueProviderProps,
     AsyncQueueStatus,
+    EnqueueOptions,
 } from './useAsyncQueue';
 
 export { useOnlineStatus } from './useOnlineStatus';
@@ -69,7 +75,11 @@ export { usePolling } from './usePolling';
 export type { UsePollingOptions, UsePollingReturn, UsePollingStatus } from './usePolling';
 
 export { useDebouncedValue } from './useDebouncedValue';
-export type { UseDebouncedValueOptions } from './useDebouncedValue';
+export type {
+    UseDebouncedValueOptions,
+    UseDebouncedValueControlsOptions,
+    DebouncedValue,
+} from './useDebouncedValue';
 
 export { useDebouncedCallback } from './useDebouncedCallback';
 export type { DebouncedCallback, UseDebouncedCallbackOptions } from './useDebouncedCallback';

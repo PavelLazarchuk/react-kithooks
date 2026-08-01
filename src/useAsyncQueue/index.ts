@@ -10,12 +10,17 @@ import {
 } from 'react';
 import type { ReactNode } from 'react';
 
-import { AsyncQueueClearedError, createAsyncQueue } from '../internal/createAsyncQueue';
-import type { AsyncQueue, AsyncQueueStatus } from '../internal/createAsyncQueue';
+import {
+    AsyncQueueClearedError,
+    AsyncQueueReplacedError,
+    createAsyncQueue,
+    isAsyncQueueCancellation,
+} from '../internal/createAsyncQueue';
+import type { AsyncQueue, AsyncQueueStatus, EnqueueOptions } from '../internal/createAsyncQueue';
 import { getAsyncQueue } from './store';
 
-export type { AsyncQueueStatus };
-export { AsyncQueueClearedError };
+export type { AsyncQueueStatus, EnqueueOptions };
+export { AsyncQueueClearedError, AsyncQueueReplacedError };
 
 export interface UseAsyncQueueOptions {
     onError?: (error: unknown) => void;
@@ -23,12 +28,16 @@ export interface UseAsyncQueueOptions {
 }
 
 export interface UseAsyncQueueReturn {
-    enqueue: <T>(task: () => Promise<T>) => Promise<T>;
+    enqueue: <T>(task: () => Promise<T>, options?: EnqueueOptions) => Promise<T>;
     status: AsyncQueueStatus;
     pending: number;
     running: number;
     queued: number;
+    isPaused: boolean;
     clear: () => number;
+    cancel: (key: string) => number;
+    pause: () => void;
+    resume: () => void;
 }
 
 export interface AsyncQueueProviderProps {
@@ -69,6 +78,16 @@ export function AsyncQueueProvider(props: AsyncQueueProviderProps) {
  * A failed task rejects its own `enqueue()` promise without blocking the ones
  * behind it. Handle that promise, or pass `onError` and use `void enqueue(…)`
  * for fire-and-forget work.
+ *
+ * Per task, `enqueue(task, { priority, key, replace })` can jump the line
+ * (higher `priority` first, FIFO within a tier) and collapse duplicates: with
+ * `replace`, a newer task drops the one still waiting under the same `key`, so
+ * ten autosaves of one field queue one write instead of ten. `cancel(key)`
+ * drops what is waiting under a key; `pause()`/`resume()` hold the line
+ * without losing it.
+ *
+ * Dropping a task rejects its promise but is not routed to `onError` — a
+ * superseded save is the queue doing its job, not a failure worth reporting.
  */
 export function useAsyncQueue(
     key?: string,
@@ -99,11 +118,17 @@ export function useAsyncQueue(
     }, [queue, concurrency]);
 
     const enqueue = useCallback(
-        <T>(task: () => Promise<T>): Promise<T> => {
-            const result = queue.enqueue(task);
+        <T>(task: () => Promise<T>, taskOptions?: EnqueueOptions): Promise<T> => {
+            const result = queue.enqueue(task, taskOptions);
             const onError = onErrorRef.current;
 
-            if (onError) result.catch(error => onError(error));
+            if (onError) {
+                result.catch(error => {
+                    if (isAsyncQueueCancellation(error)) return;
+
+                    onError(error);
+                });
+            }
 
             return result;
         },
@@ -111,6 +136,9 @@ export function useAsyncQueue(
     );
 
     const clear = useCallback(() => queue.clear(), [queue]);
+    const cancel = useCallback((taskKey: string) => queue.cancel(taskKey), [queue]);
+    const pause = useCallback(() => queue.pause(), [queue]);
+    const resume = useCallback(() => queue.resume(), [queue]);
 
     const snapshot = useSyncExternalStore(queue.subscribe, queue.getSnapshot, queue.getSnapshot);
 
@@ -120,6 +148,10 @@ export function useAsyncQueue(
         pending: snapshot.pending,
         running: snapshot.running,
         queued: snapshot.queued,
+        isPaused: snapshot.isPaused,
         clear,
+        cancel,
+        pause,
+        resume,
     };
 }

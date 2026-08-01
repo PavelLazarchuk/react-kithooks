@@ -33,10 +33,34 @@ Guarantee results at least twice a second, however long someone types without pa
 const debouncedQuery = useDebouncedValue(query, 300, { maxWaitMs: 500 });
 ```
 
+With `controls`, for a spinner and an explicit "search now":
+
+```tsx
+const { value, isPending, flush, cancel } = useDebouncedValue(query, 300, { controls: true });
+
+<input
+    value={query}
+    onChange={e => setQuery(e.target.value)}
+    onKeyDown={e => {
+        if (e.key === 'Enter') flush(); // search now, don't wait out the window
+        if (e.key === 'Escape') cancel(); // keep showing the current results
+    }}
+/>;
+{
+    isPending && <Spinner />;
+} // results below are stale — a new query is coming
+```
+
 ## API
 
 ```ts
 function useDebouncedValue<T>(value: T, delayMs: number, options?: UseDebouncedValueOptions): T;
+
+function useDebouncedValue<T>(
+    value: T,
+    delayMs: number,
+    options: UseDebouncedValueControlsOptions
+): DebouncedValue<T>;
 ```
 
 ### Parameters
@@ -51,10 +75,20 @@ function useDebouncedValue<T>(value: T, delayMs: number, options?: UseDebouncedV
 | Option      | Type     | Default | Description                                                                                        |
 | ----------- | -------- | ------- | -------------------------------------------------------------------------------------------------- |
 | `maxWaitMs` | `number` | —       | Longest the value may go un-published while it keeps changing. Omit for a plain trailing debounce. |
+| `controls`  | `true`   | —       | Return `DebouncedValue<T>` instead of the bare value. Must be a literal, not a variable.           |
 
 ### Returns
 
-`T` — the last value that stayed put for `delayMs`. The first render returns `value` itself, undebounced.
+Without `controls`: `T` — the last value that stayed put for `delayMs`. The first render returns `value` itself, undebounced.
+
+With `controls: true`, a `DebouncedValue<T>`:
+
+| Field       | Type         | Description                                                                                  |
+| ----------- | ------------ | -------------------------------------------------------------------------------------------- |
+| `value`     | `T`          | Same value the bare form returns.                                                            |
+| `isPending` | `boolean`    | An update is scheduled — `value` is behind the input. The flag a "searching…" spinner needs. |
+| `flush`     | `() => void` | Publishes the latest value now, cancelling the scheduled update.                             |
+| `cancel`    | `() => void` | Drops the scheduled update. `value` stays where it is until the input changes again.         |
 
 ## Notes
 
@@ -63,7 +97,11 @@ function useDebouncedValue<T>(value: T, delayMs: number, options?: UseDebouncedV
 - Changing `delayMs` restarts the pending window with the new delay.
 - **`maxWaitMs` is measured from the first change of a run**, not from the last one — that's what makes it a ceiling rather than a second debounce. A run ends when the value is published or reverts to what's already returned, and the next run starts its own deadline.
 - `maxWaitMs` below `delayMs` effectively replaces the delay: the deadline always wins, since the published wait is the smaller of the two.
-- This debounces a **value**. To debounce a _side effect_ (a save, an analytics call), use [useDebouncedCallback](../useDebouncedCallback/README.md) — it gives you `flush()` and `cancel()`, which a value can't.
+- **`controls` is read as a literal type, so it must be written inline** — `{ controls: true }` at the call site, or an object typed as `UseDebouncedValueControlsOptions`. A plain `UseDebouncedValueOptions` variable always selects the bare-value form.
+- **`isPending` costs nothing when you don't ask for it.** Without `controls` the hook renders exactly as before; the flag is derived from the value it already tracks, not from extra state.
+- **`flush()` publishes even a cancelled value** — it means "use what's in the input now", so Escape-then-Enter searches the current text. It's a no-op when the published value is already current.
+- **`cancel()` abandons the run, it doesn't freeze the hook.** The next change to `value` starts a fresh window, `maxWaitMs` deadline included.
+- This debounces a **value**. To debounce a _side effect_ (a save, an analytics call), use [useDebouncedCallback](../useDebouncedCallback/README.md).
 
 ## Related
 

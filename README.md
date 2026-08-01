@@ -92,22 +92,22 @@ import { useScrollAnchor, useLocalStorage } from 'react-kithooks';
 
 ### Storage & persistence
 
-| Hook                                                        | What it fixes                                                                                                                                          |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [useLocalStorage](docs/useLocalStorage/README.md)           | `useState` backed by `localStorage`, synced across tabs **and** across instances in the current tab, with parse/quota failures handled.                |
-| [useSessionStorage](docs/useSessionStorage/README.md)       | Same API, tab-scoped lifetime — state that must not outlive the tab.                                                                                   |
-| [useIndexedDB](docs/useIndexedDB/README.md)                 | `useState` backed by IndexedDB for large or structured data, with on-demand stores and cross-tab sync over `BroadcastChannel`.                         |
-| [useFormCrashRecovery](docs/useFormCrashRecovery/README.md) | Form drafts that survive a crash: structured clone (Dates and Files intact), TTL, versioning, field exclusion, conflict handling. Never auto-restores. |
+| Hook                                                        | What it fixes                                                                                                                                                          |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [useLocalStorage](docs/useLocalStorage/README.md)           | `useState` backed by `localStorage`, synced across tabs **and** across instances in the current tab (`syncTabs: false` to opt out), with parse/quota failures handled. |
+| [useSessionStorage](docs/useSessionStorage/README.md)       | Same API, tab-scoped lifetime — state that must not outlive the tab.                                                                                                   |
+| [useIndexedDB](docs/useIndexedDB/README.md)                 | `useState` backed by IndexedDB for large or structured data, with on-demand stores and cross-tab sync over `BroadcastChannel`.                                         |
+| [useFormCrashRecovery](docs/useFormCrashRecovery/README.md) | Form drafts that survive a crash: structured clone (Dates and Files intact), TTL, versioning, field exclusion, conflict handling. Never auto-restores.                 |
 
 ### Async
 
-| Hook                                                        | What it fixes                                                                                                                                            |
-| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [useAbortableFetch](docs/useAbortableFetch/README.md)       | The stale-response race in `useEffect(() => { fetch(url).then(setData) }, [id])` — superseded responses are discarded even when abort is ignored.        |
-| [useAsyncQueue](docs/useAsyncQueue/README.md)               | Overlapping writes finishing out of order. A per-key mutex outside the React tree — or a bounded worker pool, cancellable, when you raise `concurrency`. |
-| [usePolling](docs/usePolling/README.md)                     | `setInterval` + `fetch`: overlapping ticks, a hidden tab polling all day, and a failing endpoint hammered at full rate.                                  |
-| [useDebouncedValue](docs/useDebouncedValue/README.md)       | Debounce that also cancels when the value reverts within the window — type-and-undo produces no update — and never starves, with `maxWaitMs`.            |
-| [useDebouncedCallback](docs/useDebouncedCallback/README.md) | Stable identity, always calls the latest `fn`, with `flush`/`cancel`/`isPending` and a `maxWaitMs` ceiling.                                              |
+| Hook                                                        | What it fixes                                                                                                                                                                                      |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [useAbortableFetch](docs/useAbortableFetch/README.md)       | The stale-response race in `useEffect(() => { fetch(url).then(setData) }, [id])` — superseded responses are discarded even when abort is ignored.                                                  |
+| [useAsyncQueue](docs/useAsyncQueue/README.md)               | Overlapping writes finishing out of order. A per-key mutex outside the React tree — or a bounded worker pool with priorities, pause/resume, and per-key replacement, when you raise `concurrency`. |
+| [usePolling](docs/usePolling/README.md)                     | `setInterval` + `fetch`: overlapping ticks, a hidden tab polling all day, and a failing endpoint hammered at full rate.                                                                            |
+| [useDebouncedValue](docs/useDebouncedValue/README.md)       | Debounce that also cancels when the value reverts within the window — type-and-undo produces no update — never starves, with `maxWaitMs`, and can hand back `isPending`/`flush`/`cancel`.          |
+| [useDebouncedCallback](docs/useDebouncedCallback/README.md) | Stable identity, always calls the latest `fn`, with `flush`/`cancel`/`isPending` and a `maxWaitMs` ceiling.                                                                                        |
 
 ### Render bookkeeping
 
@@ -120,24 +120,24 @@ import { useScrollAnchor, useLocalStorage } from 'react-kithooks';
 
 All hooks touch `window`/`document`/`navigator` only inside effects or callback refs. Server-render values:
 
-| Hook                                    | Server value                                              |
-| --------------------------------------- | --------------------------------------------------------- |
-| `useScrollAnchor`                       | `isAtBottom: true`                                        |
-| `useKeyboardScope`                      | `isTopMost: false`                                        |
-| `useMediaQuery`                         | `serverFallback` (default `false`)                        |
-| `usePermission`                         | `status: 'loading'`                                       |
-| `useOnlineStatus`                       | `isOnline: true`                                          |
-| `useTabLeader`                          | `{ isLeader: false, status: 'pending', mechanism: null }` |
-| `useIdle`                               | `isIdle: false`                                           |
-| `useLocalStorage` / `useSessionStorage` | `initialValue`                                            |
-| `useIndexedDB`                          | `initialValue`, `status: 'loading'`                       |
-| `useFormCrashRecovery`                  | `{ recovered: null, status: 'idle' }`                     |
-| `useAbortableFetch`                     | `status: 'idle'`                                          |
-| `useAsyncQueue`                         | `{ status: 'idle', pending: 0, running: 0, queued: 0 }`   |
-| `usePolling`                            | `status: 'idle'`, `isPaused: false`                       |
-| `useDebouncedValue`                     | the current value                                         |
-| `useIsFirstRender`                      | `true`                                                    |
-| `usePreviousValue`                      | `undefined`                                               |
+| Hook                                    | Server value                                                             |
+| --------------------------------------- | ------------------------------------------------------------------------ |
+| `useScrollAnchor`                       | `isAtBottom: true`                                                       |
+| `useKeyboardScope`                      | `isTopMost: false`                                                       |
+| `useMediaQuery`                         | `serverFallback` (default `false`)                                       |
+| `usePermission`                         | `status: 'loading'`                                                      |
+| `useOnlineStatus`                       | `isOnline: true`                                                         |
+| `useTabLeader`                          | `{ isLeader: false, status: 'pending', mechanism: null }`                |
+| `useIdle`                               | `isIdle: false`                                                          |
+| `useLocalStorage` / `useSessionStorage` | `initialValue`                                                           |
+| `useIndexedDB`                          | `initialValue`, `status: 'loading'`                                      |
+| `useFormCrashRecovery`                  | `{ recovered: null, status: 'idle' }`                                    |
+| `useAbortableFetch`                     | `status: 'idle'`                                                         |
+| `useAsyncQueue`                         | `{ status: 'idle', pending: 0, running: 0, queued: 0, isPaused: false }` |
+| `usePolling`                            | `status: 'idle'`, `isPaused: false`                                      |
+| `useDebouncedValue`                     | the current value                                                        |
+| `useIsFirstRender`                      | `true`                                                                   |
+| `usePreviousValue`                      | `undefined`                                                              |
 
 No hydration mismatches.
 

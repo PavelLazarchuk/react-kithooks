@@ -38,6 +38,12 @@ Expensive default:
 const [prefs, setPrefs] = useLocalStorage('prefs', () => computeDefaults());
 ```
 
+Per-tab state that still survives a reload — a wizard step, a draft, a scroll position — where another tab jumping you to _its_ step would be a bug:
+
+```tsx
+const [step, setStep] = useLocalStorage('wizard-step', 0, { syncTabs: false });
+```
+
 ## API
 
 ```ts
@@ -57,10 +63,11 @@ function useLocalStorage<T>(
 
 ### Options
 
-| Option        | Type                   | Default          | Description                      |
-| ------------- | ---------------------- | ---------------- | -------------------------------- |
-| `serialize`   | `(value: T) => string` | `JSON.stringify` | How the value is written.        |
-| `deserialize` | `(raw: string) => T`   | `JSON.parse`     | How the raw string is read back. |
+| Option        | Type                   | Default          | Description                                                       |
+| ------------- | ---------------------- | ---------------- | ----------------------------------------------------------------- |
+| `serialize`   | `(value: T) => string` | `JSON.stringify` | How the value is written.                                         |
+| `deserialize` | `(raw: string) => T`   | `JSON.parse`     | How the raw string is read back.                                  |
+| `syncTabs`    | `boolean`              | `true`           | Adopt values written by other tabs. `false` keeps this tab's own. |
 
 ### Returns
 
@@ -78,6 +85,8 @@ A tuple:
 - Corrupted or hand-edited values fall back to `initialValue` instead of throwing, and a write that exceeds the quota does not crash the render.
 - Parsed values are cached against the raw string, so re-renders don't re-run `JSON.parse` and the returned object keeps a stable identity between changes.
 - Another tab calling `localStorage.clear()` resets every subscribed key back to its initial value.
+- **`syncTabs: false` scopes the _reactivity_, not the storage.** The key is still shared: the value is read from disk on mount and every write still lands there, where the last writer wins — the tab simply stops adopting values it didn't write, including another tab's `clear()`. It's the right default to turn off for per-tab UI state (wizard step, draft, filters), and the wrong one for anything that must agree across tabs, like auth. For genuinely tab-local state, reach for [useSessionStorage](../useSessionStorage/README.md) instead.
+- **`syncTabs` is per hook instance, and instances still share one store per key.** A synced instance and an unsynced one can coexist on the same key; writes made in this tab reach both, cross-tab writes only reach the synced one. What an unsynced instance ignores is missed for as long as it stays mounted — remounting it after every instance of that key unmounted re-reads whatever is on disk by then.
 - **A value that cannot be persisted is still kept.** In a sandboxed iframe, with third-party storage blocked, or once the quota is full, reading or writing `localStorage` throws — including the property access itself. The hook keeps rendering, and the state it can't write to disk stays in memory, shared across instances of the key for the rest of the session. Freezing the value instead would turn a controlled input into a read-only one with nothing reported anywhere.
 
 ## Related

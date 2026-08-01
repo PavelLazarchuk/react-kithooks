@@ -5,6 +5,7 @@ import type { WebStorageStore } from './webStorageStore';
 export interface UseWebStorageOptions<T> {
     serialize?: (value: T) => string;
     deserialize?: (raw: string) => T;
+    syncTabs?: boolean;
 }
 
 export type UseWebStorageReturn<T> = [
@@ -26,6 +27,8 @@ export function useWebStorage<T>(
     const store = getStore(key);
     const serialize = options?.serialize ?? (JSON.stringify as (value: T) => string);
     const deserialize = options?.deserialize ?? (JSON.parse as (raw: string) => T);
+    const syncTabs = options?.syncTabs ?? true;
+    const readRaw = syncTabs ? store.getSnapshot : store.getLocalSnapshot;
 
     const initialRef = useRef<{ key: string; value: T } | null>(null);
 
@@ -40,7 +43,7 @@ export function useWebStorage<T>(
     const parsedRef = useRef<{ raw: string | null; value: T } | null>(null);
 
     const getSnapshot = useCallback((): T => {
-        const raw = store.getSnapshot();
+        const raw = readRaw();
 
         if (raw === null) return getInitial();
         if (parsedRef.current !== null && parsedRef.current.raw === raw) {
@@ -54,7 +57,7 @@ export function useWebStorage<T>(
         } catch {
             return getInitial();
         }
-    }, [store, deserialize]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [readRaw, deserialize]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const getServerSnapshot = useCallback(
         () => getInitial(),
@@ -69,7 +72,7 @@ export function useWebStorage<T>(
                 typeof next === 'function' ? (next as (prev: T) => T)(getSnapshot()) : next;
             store.set(serialize(resolved));
         },
-        [store, serialize] // eslint-disable-line react-hooks/exhaustive-deps
+        [store, serialize, readRaw] // eslint-disable-line react-hooks/exhaustive-deps
     );
 
     const removeValue = useCallback(() => store.set(null), [store]);

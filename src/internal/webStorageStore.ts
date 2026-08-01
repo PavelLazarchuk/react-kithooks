@@ -4,6 +4,7 @@ import { createLazyStore } from './lazyStore';
 
 export interface WebStorageStore {
     getSnapshot: () => string | null;
+    getLocalSnapshot: () => string | null;
     subscribe: (listener: () => void) => () => void;
     set: (raw: string | null) => void;
 }
@@ -39,6 +40,7 @@ function createWebStorageStore(
     onDisposable: (store: WebStorageStore) => void
 ): WebStorageStore {
     let snapshot: string | null = typeof window === 'undefined' ? null : readRaw(getStorage, key);
+    let localSnapshot = snapshot;
     let storageHandler: ((event: StorageEvent) => void) | null = null;
     let memoryOnly = false;
 
@@ -59,9 +61,10 @@ function createWebStorageStore(
             memoryOnly = true;
         }
 
-        if (snapshot === raw) return;
+        if (snapshot === raw && localSnapshot === raw) return;
 
         snapshot = raw;
+        localSnapshot = raw;
         lazyStore.notify();
     };
 
@@ -93,6 +96,7 @@ function createWebStorageStore(
 
     const store: WebStorageStore = {
         getSnapshot: () => snapshot,
+        getLocalSnapshot: () => localSnapshot,
         subscribe: listener => lazyStore.subscribe(listener),
         set,
     };
