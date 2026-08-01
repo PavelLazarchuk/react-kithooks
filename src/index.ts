@@ -36,7 +36,7 @@ export type { UseSessionStorageOptions, UseSessionStorageReturn } from './useSes
 export { useIndexedDB } from './useIndexedDB';
 export type { UseIndexedDBOptions, UseIndexedDBReturn, UseIndexedDBStatus } from './useIndexedDB';
 
-export { useAsyncQueue, AsyncQueueProvider } from './useAsyncQueue';
+export { useAsyncQueue, AsyncQueueProvider, AsyncQueueClearedError } from './useAsyncQueue';
 export type {
     UseAsyncQueueOptions,
     UseAsyncQueueReturn,
@@ -46,6 +46,17 @@ export type {
 
 export { useOnlineStatus } from './useOnlineStatus';
 export type { UseOnlineStatusOptions, UseOnlineStatusReturn } from './useOnlineStatus';
+
+export { useIdle } from './useIdle';
+export type { UseIdleOptions, UseIdleReturn } from './useIdle';
+
+export { useTabLeader } from './useTabLeader';
+export type {
+    UseTabLeaderOptions,
+    UseTabLeaderReturn,
+    TabLeaderStatus,
+    TabLeaderMechanism,
+} from './useTabLeader';
 
 export { useAbortableFetch } from './useAbortableFetch';
 export type {
@@ -58,9 +69,10 @@ export { usePolling } from './usePolling';
 export type { UsePollingOptions, UsePollingReturn, UsePollingStatus } from './usePolling';
 
 export { useDebouncedValue } from './useDebouncedValue';
+export type { UseDebouncedValueOptions } from './useDebouncedValue';
 
 export { useDebouncedCallback } from './useDebouncedCallback';
-export type { DebouncedCallback } from './useDebouncedCallback';
+export type { DebouncedCallback, UseDebouncedCallbackOptions } from './useDebouncedCallback';
 
 export { useMediaQuery } from './useMediaQuery';
 export type { UseMediaQueryOptions } from './useMediaQuery';

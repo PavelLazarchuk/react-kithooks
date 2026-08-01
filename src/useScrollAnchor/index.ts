@@ -92,9 +92,6 @@ export function useScrollAnchor<T extends HTMLElement = HTMLDivElement>(
             const top = el.scrollHeight - el.clientHeight;
 
             if (behavior === 'smooth' && typeof el.scrollTo === 'function') {
-                // A smooth scroll fires a 'scroll' event per animation frame, not
-                // once — a time window (rather than the +1 counter used for
-                // instant scrolls) is what absorbs all of them.
                 smoothScrollUntilRef.current = Date.now() + SMOOTH_SCROLL_MAX_MS;
                 el.scrollTo({ top, behavior });
             } else {

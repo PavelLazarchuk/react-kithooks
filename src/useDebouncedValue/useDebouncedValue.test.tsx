@@ -70,6 +70,72 @@ describe('useDebouncedValue', () => {
         expect(() => act(() => vi.advanceTimersByTime(1000))).not.toThrow();
     });
 
+    describe('maxWaitMs', () => {
+        function typeContinuously(
+            rerender: (props: { value: string }) => void,
+            steps: number
+        ): void {
+            for (let i = 1; i <= steps; i += 1) {
+                rerender({ value: `a${i}` });
+                act(() => vi.advanceTimersByTime(200));
+            }
+        }
+
+        it('starves forever without it', () => {
+            const { result, rerender } = renderHook(({ value }) => useDebouncedValue(value, 300), {
+                initialProps: { value: 'a' },
+            });
+
+            typeContinuously(rerender, 6);
+
+            expect(result.current).toBe('a');
+        });
+
+        it('commits on the deadline even while the value keeps changing', () => {
+            const { result, rerender } = renderHook(
+                ({ value }) => useDebouncedValue(value, 300, { maxWaitMs: 1000 }),
+                { initialProps: { value: 'a' } }
+            );
+
+            typeContinuously(rerender, 6);
+
+            expect(result.current).toBe('a5');
+        });
+
+        it('still debounces normally when the value settles before the deadline', () => {
+            const { result, rerender } = renderHook(
+                ({ value }) => useDebouncedValue(value, 300, { maxWaitMs: 1000 }),
+                { initialProps: { value: 'a' } }
+            );
+
+            rerender({ value: 'b' });
+            act(() => vi.advanceTimersByTime(299));
+            expect(result.current).toBe('a');
+
+            act(() => vi.advanceTimersByTime(1));
+            expect(result.current).toBe('b');
+        });
+
+        it('does not let a finished run shorten the next one', () => {
+            const { result, rerender } = renderHook(
+                ({ value }) => useDebouncedValue(value, 300, { maxWaitMs: 1000 }),
+                { initialProps: { value: 'a' } }
+            );
+
+            rerender({ value: 'b' });
+            act(() => vi.advanceTimersByTime(100));
+            rerender({ value: 'a' });
+            act(() => vi.advanceTimersByTime(2000));
+
+            rerender({ value: 'c' });
+            act(() => vi.advanceTimersByTime(299));
+            expect(result.current).toBe('a');
+
+            act(() => vi.advanceTimersByTime(1));
+            expect(result.current).toBe('c');
+        });
+    });
+
     it('applies a changed delay to the pending update', () => {
         const { result, rerender } = renderHook(
             ({ value, delay }) => useDebouncedValue(value, delay),

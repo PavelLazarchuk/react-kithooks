@@ -12,6 +12,8 @@ Every app rewrites this one, and most rewrites have the same two holes: a pendin
 
 This one compares against the currently returned value, so type-and-undo produces no update at all.
 
+There's a third hole, in every plain debounce: while the value keeps changing faster than `delayMs`, the update never happens **at all**. Someone typing steadily into a search box sees no results until they stop. `maxWaitMs` caps that starvation.
+
 ## Usage
 
 ```tsx
@@ -25,10 +27,16 @@ const { data } = useAbortableFetch(
 );
 ```
 
+Guarantee results at least twice a second, however long someone types without pausing:
+
+```tsx
+const debouncedQuery = useDebouncedValue(query, 300, { maxWaitMs: 500 });
+```
+
 ## API
 
 ```ts
-function useDebouncedValue<T>(value: T, delayMs: number): T;
+function useDebouncedValue<T>(value: T, delayMs: number, options?: UseDebouncedValueOptions): T;
 ```
 
 ### Parameters
@@ -37,6 +45,12 @@ function useDebouncedValue<T>(value: T, delayMs: number): T;
 | --------- | -------- | ----------------------------------------------- |
 | `value`   | `T`      | The value to debounce.                          |
 | `delayMs` | `number` | Quiet period before the new value is published. |
+
+### Options
+
+| Option      | Type     | Default | Description                                                                                        |
+| ----------- | -------- | ------- | -------------------------------------------------------------------------------------------------- |
+| `maxWaitMs` | `number` | —       | Longest the value may go un-published while it keeps changing. Omit for a plain trailing debounce. |
 
 ### Returns
 
@@ -47,6 +61,8 @@ function useDebouncedValue<T>(value: T, delayMs: number): T;
 - **Comparison is `Object.is`.** A new object or array literal counts as a change every render — debounce a primitive, or memoize the object first.
 - The pending update is cancelled on unmount: no setState-after-unmount warnings.
 - Changing `delayMs` restarts the pending window with the new delay.
+- **`maxWaitMs` is measured from the first change of a run**, not from the last one — that's what makes it a ceiling rather than a second debounce. A run ends when the value is published or reverts to what's already returned, and the next run starts its own deadline.
+- `maxWaitMs` below `delayMs` effectively replaces the delay: the deadline always wins, since the published wait is the smaller of the two.
 - This debounces a **value**. To debounce a _side effect_ (a save, an analytics call), use [useDebouncedCallback](../useDebouncedCallback/README.md) — it gives you `flush()` and `cancel()`, which a value can't.
 
 ## Related

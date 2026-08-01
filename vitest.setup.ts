@@ -57,3 +57,91 @@ class PolyfillBroadcastChannel {
 if (typeof globalThis.BroadcastChannel === 'undefined') {
     (globalThis as Record<string, unknown>).BroadcastChannel = PolyfillBroadcastChannel;
 }
+
+interface QueueEntry {
+    start: () => void;
+    signal?: AbortSignal;
+    onAbort?: () => void;
+}
+
+class PolyfillLockManager {
+    private queues = new Map<string, QueueEntry[]>();
+    private held = new Set<string>();
+
+    request(name: string, ...args: unknown[]): Promise<unknown> {
+        const hasOptions = typeof args[0] !== 'function';
+        const options = (hasOptions ? args[0] : {}) as { signal?: AbortSignal };
+        const callback = (hasOptions ? args[1] : args[0]) as (lock: {
+            name: string;
+            mode: string;
+        }) => unknown;
+        const signal = options.signal;
+
+        return new Promise((resolve, reject) => {
+            const abortError = () => {
+                const err = new Error('The request was aborted.');
+                err.name = 'AbortError';
+                return err;
+            };
+
+            if (signal?.aborted) {
+                reject(abortError());
+                return;
+            }
+
+            const entry: QueueEntry = {
+                signal,
+                start: () => {
+                    queueMicrotask(() => {
+                        Promise.resolve(callback({ name, mode: 'exclusive' }))
+                            .then(resolve, reject)
+                            .finally(() => this.release(name));
+                    });
+                },
+            };
+
+            if (signal) {
+                entry.onAbort = () => {
+                    const queue = this.queues.get(name);
+                    const idx = queue?.indexOf(entry) ?? -1;
+
+                    if (idx !== -1) {
+                        queue?.splice(idx, 1);
+                        reject(abortError());
+                    }
+                };
+                signal.addEventListener('abort', entry.onAbort);
+            }
+
+            const queue = this.queues.get(name) ?? [];
+            this.queues.set(name, queue);
+            queue.push(entry);
+            this.pump(name);
+        });
+    }
+
+    private pump(name: string): void {
+        if (this.held.has(name)) return;
+
+        const queue = this.queues.get(name);
+        const entry = queue?.shift();
+
+        if (!entry) return;
+
+        this.held.add(name);
+        entry.start();
+    }
+
+    private release(name: string): void {
+        this.held.delete(name);
+        this.pump(name);
+    }
+}
+
+if (typeof navigator !== 'undefined' && typeof navigator.locks === 'undefined') {
+    Object.defineProperty(navigator, 'locks', {
+        value: new PolyfillLockManager(),
+        configurable: true,
+        writable: true,
+    });
+}

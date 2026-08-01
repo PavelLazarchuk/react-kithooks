@@ -442,6 +442,271 @@ describe('useAsyncQueue', () => {
         });
     });
 
+    describe('concurrency', () => {
+        it('runs at most `concurrency` tasks at once, admitting them in order', async () => {
+            const gates = [deferred(), deferred(), deferred(), deferred()];
+            const started: number[] = [];
+
+            const { result } = renderHook(() => useAsyncQueue(undefined, { concurrency: 2 }));
+            await flush();
+
+            act(() => {
+                gates.forEach((gate, i) => {
+                    void result.current.enqueue(async () => {
+                        started.push(i);
+                        await gate.promise;
+                    });
+                });
+            });
+            await flush();
+
+            expect(started).toEqual([0, 1]);
+            expect(result.current.running).toBe(2);
+            expect(result.current.queued).toBe(2);
+            expect(result.current.pending).toBe(4);
+
+            await act(async () => {
+                gates[0]!.resolve();
+            });
+            await flush();
+
+            expect(started).toEqual([0, 1, 2]);
+            expect(result.current.running).toBe(2);
+            expect(result.current.queued).toBe(1);
+
+            await act(async () => {
+                gates[1]!.resolve();
+                gates[2]!.resolve();
+                gates[3]!.resolve();
+            });
+            await flush();
+
+            expect(result.current.status).toBe('idle');
+        });
+
+        it('defaults to a mutex — one at a time', async () => {
+            const gates = [deferred(), deferred()];
+            const started: number[] = [];
+
+            const { result } = renderHook(() => useAsyncQueue());
+
+            act(() => {
+                gates.forEach((gate, i) => {
+                    void result.current.enqueue(async () => {
+                        started.push(i);
+                        await gate.promise;
+                    });
+                });
+            });
+            await flush();
+
+            expect(started).toEqual([0]);
+            expect(result.current.running).toBe(1);
+
+            await act(async () => {
+                gates[0]!.resolve();
+                gates[1]!.resolve();
+            });
+            await flush();
+        });
+
+        it('admits waiting tasks immediately when the limit is raised', async () => {
+            const gates = [deferred(), deferred(), deferred()];
+            const started: number[] = [];
+
+            const { result, rerender } = renderHook(
+                ({ concurrency }: { concurrency: number }) =>
+                    useAsyncQueue('pool', { concurrency }),
+                { initialProps: { concurrency: 1 } }
+            );
+            await flush();
+
+            act(() => {
+                gates.forEach((gate, i) => {
+                    void result.current.enqueue(async () => {
+                        started.push(i);
+                        await gate.promise;
+                    });
+                });
+            });
+            await flush();
+            expect(started).toEqual([0]);
+
+            rerender({ concurrency: 3 });
+            await flush();
+
+            expect(started).toEqual([0, 1, 2]);
+
+            await act(async () => {
+                gates.forEach(gate => gate.resolve());
+            });
+            await flush();
+        });
+
+        it('cannot un-start running tasks when the limit is lowered', async () => {
+            const gates = [deferred(), deferred()];
+            const started: number[] = [];
+
+            const { result, rerender } = renderHook(
+                ({ concurrency }: { concurrency: number }) =>
+                    useAsyncQueue('shrink', { concurrency }),
+                { initialProps: { concurrency: 2 } }
+            );
+            await flush();
+
+            act(() => {
+                gates.forEach((gate, i) => {
+                    void result.current.enqueue(async () => {
+                        started.push(i);
+                        await gate.promise;
+                    });
+                });
+            });
+            await flush();
+            expect(result.current.running).toBe(2);
+
+            rerender({ concurrency: 1 });
+            await flush();
+
+            expect(result.current.running).toBe(2);
+
+            await act(async () => {
+                gates.forEach(gate => gate.resolve());
+            });
+            await flush();
+        });
+
+        it('treats a nonsensical concurrency as 1 rather than stalling the queue', async () => {
+            const gate = deferred();
+            const { result } = renderHook(() => useAsyncQueue(undefined, { concurrency: 0 }));
+            await flush();
+
+            act(() => {
+                void result.current.enqueue(() => gate.promise);
+            });
+            await flush();
+
+            expect(result.current.running).toBe(1);
+
+            await act(async () => {
+                gate.resolve();
+            });
+            await flush();
+        });
+    });
+
+    describe('clear', () => {
+        it('drops queued tasks without touching the running one', async () => {
+            const gate = deferred();
+            const started: number[] = [];
+
+            const { result } = renderHook(() => useAsyncQueue());
+
+            act(() => {
+                void result.current.enqueue(async () => {
+                    started.push(0);
+                    await gate.promise;
+                });
+                void result.current.enqueue(async () => {
+                    started.push(1);
+                });
+                void result.current.enqueue(async () => {
+                    started.push(2);
+                });
+            });
+            await flush();
+
+            expect(result.current.queued).toBe(2);
+
+            let dropped = 0;
+            act(() => {
+                dropped = result.current.clear();
+            });
+
+            expect(dropped).toBe(2);
+            expect(result.current.queued).toBe(0);
+            expect(result.current.running).toBe(1);
+
+            await act(async () => {
+                gate.resolve();
+            });
+            await flush();
+
+            expect(started).toEqual([0]);
+            expect(result.current.status).toBe('idle');
+        });
+
+        it('rejects the promises of dropped tasks instead of leaving them unsettled', async () => {
+            const gate = deferred();
+            const { result } = renderHook(() => useAsyncQueue());
+
+            let rejection: unknown;
+            act(() => {
+                void result.current.enqueue(() => gate.promise);
+                result.current
+                    .enqueue(async () => 'never')
+                    .catch(error => {
+                        rejection = error;
+                    });
+            });
+            await flush();
+
+            act(() => {
+                result.current.clear();
+            });
+            await flush();
+
+            expect((rejection as Error).name).toBe('AsyncQueueClearedError');
+
+            await act(async () => {
+                gate.resolve();
+            });
+            await flush();
+        });
+
+        it('does not spray unhandled rejections over fire-and-forget tasks', async () => {
+            const unhandled = vi.fn();
+            const nodeProcess = (globalThis as { process?: NodeProcessLike }).process;
+
+            expect(nodeProcess).toBeDefined();
+            nodeProcess?.on('unhandledRejection', unhandled);
+
+            const gate = deferred();
+            const { result } = renderHook(() => useAsyncQueue());
+
+            act(() => {
+                void result.current.enqueue(() => gate.promise);
+                void result.current.enqueue(async () => 'dropped');
+                void result.current.enqueue(async () => 'dropped too');
+            });
+            await flush();
+
+            act(() => {
+                result.current.clear();
+            });
+
+            await act(async () => {
+                gate.resolve();
+            });
+            await new Promise(resolve => setTimeout(resolve, 20));
+
+            expect(unhandled).not.toHaveBeenCalled();
+            nodeProcess?.off('unhandledRejection', unhandled);
+        });
+
+        it('is a no-op on an empty queue', async () => {
+            const { result } = renderHook(() => useAsyncQueue());
+
+            let dropped = -1;
+            act(() => {
+                dropped = result.current.clear();
+            });
+
+            expect(dropped).toBe(0);
+            expect(result.current.status).toBe('idle');
+        });
+    });
+
     it('switches queues when the key changes', async () => {
         const gate = deferred();
         const { result, rerender } = renderHook(({ key }: { key: string }) => useAsyncQueue(key), {

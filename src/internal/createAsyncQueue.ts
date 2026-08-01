@@ -5,6 +5,8 @@ export type AsyncQueueStatus = 'idle' | 'running';
 export interface AsyncQueueSnapshot {
     status: AsyncQueueStatus;
     pending: number;
+    running: number;
+    queued: number;
 }
 
 export interface AsyncQueue {
@@ -12,52 +14,119 @@ export interface AsyncQueue {
     getSnapshot: () => AsyncQueueSnapshot;
     subscribe: (listener: () => void) => () => void;
     isDisposable: () => boolean;
+    clear: () => number;
+    setConcurrency: (next: number) => void;
 }
 
 export interface CreateAsyncQueueOptions {
     onDisposable?: () => void;
+    concurrency?: number;
 }
 
-const IDLE: AsyncQueueSnapshot = { status: 'idle', pending: 0 };
+export class AsyncQueueClearedError extends Error {
+    constructor() {
+        super('Task was cleared from the queue before it started.');
+        this.name = 'AsyncQueueClearedError';
+    }
+}
 
-/**
- * Promise-chain mutex with a reactive snapshot: tasks run one at a time, in
- * enqueue order, each starting only once the previous one has settled.
- */
+interface QueueItem {
+    start: () => void;
+    drop: () => void;
+    promise: Promise<unknown>;
+}
+
+const IDLE: AsyncQueueSnapshot = { status: 'idle', pending: 0, running: 0, queued: 0 };
+
+function normalizeConcurrency(value: number | undefined): number {
+    if (value === undefined || !Number.isFinite(value)) return 1;
+
+    return Math.max(1, Math.floor(value));
+}
+
 export function createAsyncQueue(options: CreateAsyncQueueOptions = {}): AsyncQueue {
-    let tail: Promise<unknown> = Promise.resolve();
-    let pending = 0;
+    let concurrency = normalizeConcurrency(options.concurrency);
+    let running = 0;
+    const queue: QueueItem[] = [];
     let snapshot: AsyncQueueSnapshot = IDLE;
     const listeners = createListenerSet();
 
-    const isDisposable = () => pending === 0 && listeners.size === 0;
+    const isDisposable = () => running === 0 && queue.length === 0 && listeners.size === 0;
 
     const reportDisposable = () => {
         if (isDisposable()) options.onDisposable?.();
     };
 
     const publish = () => {
-        snapshot = pending === 0 ? IDLE : { status: 'running', pending };
+        snapshot =
+            running === 0 && queue.length === 0
+                ? IDLE
+                : {
+                      status: 'running',
+                      pending: running + queue.length,
+                      running,
+                      queued: queue.length,
+                  };
         listeners.notify();
         reportDisposable();
     };
 
+    const pump = () => {
+        while (running < concurrency && queue.length > 0) {
+            const item = queue.shift();
+
+            if (item) item.start();
+        }
+
+        publish();
+    };
+
     const enqueue = <T>(task: () => Promise<T>): Promise<T> => {
-        pending += 1;
+        let item!: Omit<QueueItem, 'promise'>;
+
+        const promise = new Promise<T>((resolve, reject) => {
+            item = {
+                start: () => {
+                    running += 1;
+
+                    Promise.resolve()
+                        .then(task)
+                        .then(resolve, reject)
+                        .finally(() => {
+                            running -= 1;
+                            pump();
+                        });
+                },
+                drop: () => reject(new AsyncQueueClearedError()),
+            };
+        });
+
+        queue.push({ ...item, promise });
+        pump();
+
+        return promise;
+    };
+
+    const clear = (): number => {
+        const dropped = queue.splice(0, queue.length);
+
+        for (const item of dropped) {
+            item.promise.catch(() => undefined);
+            item.drop();
+        }
+
         publish();
 
-        const result = tail.then(task);
+        return dropped.length;
+    };
 
-        tail = result.catch(() => undefined);
+    const setConcurrency = (next: number) => {
+        const normalized = normalizeConcurrency(next);
 
-        const settle = () => {
-            pending -= 1;
-            publish();
-        };
+        if (normalized === concurrency) return;
 
-        result.then(settle, settle);
-
-        return result;
+        concurrency = normalized;
+        pump();
     };
 
     const subscribe = (listener: () => void): (() => void) => {
@@ -74,5 +143,7 @@ export function createAsyncQueue(options: CreateAsyncQueueOptions = {}): AsyncQu
         getSnapshot: () => snapshot,
         subscribe,
         isDisposable,
+        clear,
+        setConcurrency,
     };
 }

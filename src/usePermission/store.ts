@@ -2,7 +2,13 @@ import { createKeyedCache } from '../internal/keyedCache';
 import { createLazyStore } from '../internal/lazyStore';
 
 export type PermissionKind =
-    'camera' | 'microphone' | 'geolocation' | 'notifications' | 'clipboard-read';
+    | 'camera'
+    | 'microphone'
+    | 'geolocation'
+    | 'notifications'
+    | 'clipboard-read'
+    | 'clipboard-write'
+    | 'persistent-storage';
 
 export type PermissionStatusEx = 'granted' | 'denied' | 'prompt' | 'unsupported' | 'loading';
 
@@ -31,30 +37,54 @@ function createStore(kind: PermissionKind): PermissionStore {
         lazyStore.notify();
     };
 
-    const applyFallback = () => {
+    const applyFallback = async (startedAt: number): Promise<void> => {
         if (kind === 'notifications' && typeof Notification !== 'undefined') {
             set(mapNotificationPermission(Notification.permission));
 
             return;
         }
+
+        // Safari has no Permissions API entry for persistent-storage, but it
+        // does implement `persisted()` — which answers "is it already
+        // persistent?", never "was it refused". So a `false` is an
+        // unanswered ask, not a denial.
+        if (kind === 'persistent-storage' && navigator.storage?.persisted) {
+            try {
+                const persisted = await navigator.storage.persisted();
+
+                if (startedAt !== epoch) return;
+
+                set(persisted ? 'granted' : 'prompt');
+
+                return;
+            } catch {
+                // empty
+            }
+        }
+
+        if (startedAt !== epoch) return;
         if (snapshot === 'loading') set('unsupported');
     };
 
     const refresh = async (): Promise<void> => {
         if (typeof navigator === 'undefined') {
             set('unsupported');
+
             return;
         }
         if (nativeStatus) {
             set(nativeStatus.state);
-            return;
-        }
-        if (!navigator.permissions?.query) {
-            applyFallback();
+
             return;
         }
 
         const startedAt = epoch;
+
+        if (!navigator.permissions?.query) {
+            await applyFallback(startedAt);
+
+            return;
+        }
 
         try {
             const status = await navigator.permissions.query({ name: kind as PermissionName });
@@ -73,7 +103,7 @@ function createStore(kind: PermissionKind): PermissionStore {
 
             set(status.state);
         } catch {
-            applyFallback();
+            await applyFallback(startedAt);
         }
     };
 

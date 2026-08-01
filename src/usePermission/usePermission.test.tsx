@@ -328,4 +328,123 @@ describe('usePermission', () => {
         expect(outcome).toBe('granted');
         expect(result.current.status).toBe('granted');
     });
+
+    describe('persistent-storage', () => {
+        function stubStorage(storage: Partial<StorageManager>) {
+            Object.defineProperty(navigator, 'storage', {
+                value: storage,
+                configurable: true,
+            });
+        }
+
+        afterEach(() => {
+            delete (navigator as any).storage;
+        });
+
+        it('grants via navigator.storage.persist()', async () => {
+            const status = new FakePermissionStatus('prompt');
+            stubPermissionsQuery(() => Promise.resolve(status));
+            const persist = vi.fn().mockResolvedValue(true);
+            stubStorage({ persist });
+
+            const { result } = renderHook(() => usePermission('persistent-storage'));
+            await flush();
+
+            await act(async () => {
+                status.setState('granted');
+                await result.current.request();
+            });
+
+            expect(persist).toHaveBeenCalledTimes(1);
+            expect(result.current.status).toBe('granted');
+        });
+
+        it('treats a refused persist() as still promptable, not denied', async () => {
+            const status = new FakePermissionStatus('prompt');
+            stubPermissionsQuery(() => Promise.resolve(status));
+            stubStorage({ persist: vi.fn().mockResolvedValue(false) });
+
+            const { result } = renderHook(() => usePermission('persistent-storage'));
+            await flush();
+
+            let outcome: string | undefined;
+            await act(async () => {
+                outcome = await result.current.request();
+            });
+
+            expect(outcome).toBe('prompt');
+            expect(result.current.isDenied).toBe(false);
+        });
+
+        it('falls back to persisted() where the Permissions API has no entry', async () => {
+            stubPermissionsQuery(() => Promise.reject(new TypeError('unknown permission name')));
+            stubStorage({ persisted: vi.fn().mockResolvedValue(true) });
+
+            const { result } = renderHook(() => usePermission('persistent-storage'));
+            await flush();
+
+            expect(result.current.status).toBe('granted');
+        });
+
+        it('reports a not-yet-persistent bucket as prompt, not denied', async () => {
+            stubPermissionsQuery(() => Promise.reject(new TypeError('unknown permission name')));
+            stubStorage({ persisted: vi.fn().mockResolvedValue(false) });
+
+            const { result } = renderHook(() => usePermission('persistent-storage'));
+            await flush();
+
+            expect(result.current.status).toBe('prompt');
+            expect(result.current.isDenied).toBe(false);
+        });
+
+        it('is unsupported where the Storage API is missing entirely', async () => {
+            stubPermissionsQuery(() => Promise.reject(new TypeError('unknown permission name')));
+
+            const { result } = renderHook(() => usePermission('persistent-storage'));
+            await flush();
+
+            expect(result.current.status).toBe('unsupported');
+        });
+    });
+
+    describe('clipboard-write', () => {
+        afterEach(() => {
+            delete (navigator as any).clipboard;
+        });
+
+        it('never writes to the clipboard just to answer a status question', async () => {
+            const status = new FakePermissionStatus('granted');
+            stubPermissionsQuery(() => Promise.resolve(status));
+            const writeText = vi.fn();
+            Object.defineProperty(navigator, 'clipboard', {
+                value: { writeText },
+                configurable: true,
+            });
+
+            const { result } = renderHook(() => usePermission('clipboard-write'));
+            await flush();
+
+            let outcome: string | undefined;
+            await act(async () => {
+                outcome = await result.current.request();
+            });
+
+            expect(writeText).not.toHaveBeenCalled();
+            expect(outcome).toBe('granted');
+        });
+
+        it('is unsupported where the Clipboard API is missing', async () => {
+            stubPermissionsQuery(() => Promise.reject(new TypeError('unknown permission name')));
+
+            const { result } = renderHook(() => usePermission('clipboard-write'));
+            await flush();
+
+            let outcome: string | undefined;
+            await act(async () => {
+                outcome = await result.current.request();
+            });
+
+            expect(outcome).toBe('unsupported');
+        });
+    });
 });

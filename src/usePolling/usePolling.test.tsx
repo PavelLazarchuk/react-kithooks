@@ -40,7 +40,6 @@ async function setOnline(online: boolean) {
     Object.defineProperty(navigator, 'onLine', { value: online, configurable: true });
     await act(async () => {
         window.dispatchEvent(new Event(online ? 'online' : 'offline'));
-        // The shared online store debounces browser events by 300ms.
         await vi.advanceTimersByTimeAsync(300);
     });
 }

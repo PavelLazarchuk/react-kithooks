@@ -134,4 +134,78 @@ describe('useDebouncedCallback', () => {
 
         expect(fn).toHaveBeenCalledWith('x');
     });
+
+    describe('maxWaitMs', () => {
+        function callContinuously(call: (arg: string) => void, steps: number): void {
+            for (let i = 0; i < steps; i += 1) {
+                act(() => call(`call${i}`));
+                act(() => vi.advanceTimersByTime(200));
+            }
+        }
+
+        it('starves forever without it', () => {
+            const fn = vi.fn();
+            const { result } = renderHook(() => useDebouncedCallback(fn, 300));
+
+            callContinuously(result.current, 6);
+
+            expect(fn).not.toHaveBeenCalled();
+        });
+
+        it('invokes on the deadline during a continuous call stream', () => {
+            const fn = vi.fn();
+            const { result } = renderHook(() => useDebouncedCallback(fn, 300, { maxWaitMs: 1000 }));
+
+            callContinuously(result.current, 6);
+
+            expect(fn).toHaveBeenCalledTimes(1);
+            expect(fn).toHaveBeenCalledWith('call4');
+        });
+
+        it('still debounces normally when calls settle before the deadline', () => {
+            const fn = vi.fn();
+            const { result } = renderHook(() => useDebouncedCallback(fn, 300, { maxWaitMs: 1000 }));
+
+            act(() => result.current('x'));
+            act(() => vi.advanceTimersByTime(299));
+            expect(fn).not.toHaveBeenCalled();
+
+            act(() => vi.advanceTimersByTime(1));
+            expect(fn).toHaveBeenCalledWith('x');
+        });
+
+        it('does not let a cancelled run shorten the next one', () => {
+            const fn = vi.fn();
+            const { result } = renderHook(() => useDebouncedCallback(fn, 300, { maxWaitMs: 1000 }));
+
+            act(() => result.current('dropped'));
+            act(() => vi.advanceTimersByTime(200));
+            act(() => result.current.cancel());
+            act(() => vi.advanceTimersByTime(2000));
+
+            act(() => result.current('kept'));
+            act(() => vi.advanceTimersByTime(299));
+            expect(fn).not.toHaveBeenCalled();
+
+            act(() => vi.advanceTimersByTime(1));
+            expect(fn).toHaveBeenCalledWith('kept');
+        });
+
+        it('does not let a flushed run shorten the next one', () => {
+            const fn = vi.fn();
+            const { result } = renderHook(() => useDebouncedCallback(fn, 300, { maxWaitMs: 1000 }));
+
+            act(() => result.current('first'));
+            act(() => vi.advanceTimersByTime(200));
+            act(() => result.current.flush());
+            expect(fn).toHaveBeenCalledWith('first');
+
+            act(() => result.current('second'));
+            act(() => vi.advanceTimersByTime(299));
+            expect(fn).toHaveBeenCalledTimes(1);
+
+            act(() => vi.advanceTimersByTime(1));
+            expect(fn).toHaveBeenCalledWith('second');
+        });
+    });
 });

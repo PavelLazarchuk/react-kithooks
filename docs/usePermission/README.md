@@ -1,6 +1,6 @@
 # usePermission
 
-One reactive hook over the fragmented browser permission APIs — query, request, and live status updates for camera, microphone, geolocation, notifications and clipboard.
+One reactive hook over the fragmented browser permission APIs — query, request, and live status updates for camera, microphone, geolocation, notifications, clipboard and persistent storage.
 
 ```ts
 import { usePermission } from 'react-kithooks/usePermission';
@@ -30,9 +30,21 @@ function usePermission(name: PermissionKind): UsePermissionReturn;
 
 ### Parameters
 
-| Parameter | Type             | Description                                                                                |
-| --------- | ---------------- | ------------------------------------------------------------------------------------------ |
-| `name`    | `PermissionKind` | `'camera'` \| `'microphone'` \| `'geolocation'` \| `'notifications'` \| `'clipboard-read'` |
+| Parameter | Type             | Description                          |
+| --------- | ---------------- | ------------------------------------ |
+| `name`    | `PermissionKind` | One of the kinds in the table below. |
+
+### Permission kinds
+
+| Kind                   | How `request()` asks                                                         |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| `'camera'`             | `getUserMedia({ video: true })`, tracks stopped immediately.                 |
+| `'microphone'`         | `getUserMedia({ audio: true })`, tracks stopped immediately.                 |
+| `'geolocation'`        | `getCurrentPosition()`.                                                      |
+| `'notifications'`      | `Notification.requestPermission()`.                                          |
+| `'clipboard-read'`     | `clipboard.readText()`.                                                      |
+| `'clipboard-write'`    | Nothing — status only. See the note below.                                   |
+| `'persistent-storage'` | `navigator.storage.persist()`, asking the browser not to evict your storage. |
 
 ### Returns
 
@@ -50,6 +62,8 @@ function usePermission(name: PermissionKind): UsePermissionReturn;
 - **`isDenied` is terminal on Chromium**: re-requesting will not prompt again, so show "enable in browser settings" UI rather than another button that does nothing.
 - **Safari masks camera/mic `denied` as `prompt`** until `getUserMedia` has actually run this session — the first `request()` is what surfaces the real answer.
 - **Geolocation**: only `PERMISSION_DENIED` counts as a denial, and only an actual fix counts as a grant. A timeout can fire while the prompt is still open, and position-unavailable (no GPS indoors) says nothing about permission — neither is written to the status. Where the Permissions API exists it decides; where it doesn't (Safari), the honest answer stays `'prompt'`.
+- **`request('clipboard-write')` never writes anything.** The only way to actually exercise that permission is to perform a write, which would destroy whatever the user has copied — never an acceptable price for answering a status question. It reports the queried status instead; Chromium auto-grants clipboard-write to the focused document anyway.
+- **`'persistent-storage'` is worth asking for if you use [useIndexedDB](../useIndexedDB/README.md) or [useFormCrashRecovery](../useFormCrashRecovery/README.md)** — without it the browser may evict your origin's storage under disk pressure, taking crash-recovery drafts with it. A refused `persist()` reports `'prompt'`, not `'denied'`: Chromium decides it from site-engagement heuristics and can grant it later unprompted. Where the Permissions API has no entry for it (Safari), `navigator.storage.persisted()` answers instead.
 - **`'unsupported'`** means the platform has no API for this permission at all — treat it as "don't show the affordance", not as a denial.
 - Status is shared per permission kind across every component that asks for it, and stays live: native `PermissionStatus.onchange` updates it, and it re-queries when the tab becomes visible again (so a change made in browser settings while you were away is picked up).
 

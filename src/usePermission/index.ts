@@ -106,6 +106,30 @@ async function requestClipboardRead(): Promise<RequestOutcome> {
     }
 }
 
+function requestClipboardWrite(): RequestOutcome {
+    if (!navigator.clipboard?.writeText) {
+        return { status: 'unsupported', authoritative: false };
+    }
+
+    return { status: 'prompt', authoritative: false };
+}
+
+async function requestPersistentStorage(): Promise<RequestOutcome> {
+    if (!navigator.storage?.persist) {
+        return { status: 'unsupported', authoritative: false };
+    }
+
+    try {
+        const granted = await navigator.storage.persist();
+
+        return granted
+            ? { status: 'granted', authoritative: true }
+            : { status: 'prompt', authoritative: false };
+    } catch (err) {
+        return outcomeFromRequestError(err);
+    }
+}
+
 async function performRequest(kind: PermissionKind): Promise<RequestOutcome> {
     if (typeof navigator === 'undefined') {
         return { status: 'unsupported', authoritative: false };
@@ -121,6 +145,10 @@ async function performRequest(kind: PermissionKind): Promise<RequestOutcome> {
             return requestNotifications();
         case 'clipboard-read':
             return requestClipboardRead();
+        case 'clipboard-write':
+            return requestClipboardWrite();
+        case 'persistent-storage':
+            return requestPersistentStorage();
     }
 }
 

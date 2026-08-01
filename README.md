@@ -83,10 +83,12 @@ import { useScrollAnchor, useLocalStorage } from 'react-kithooks';
 
 ### Browser capabilities
 
-| Hook                                              | What it fixes                                                                                                                 |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| [usePermission](docs/usePermission/README.md)     | One reactive status + `request()` across the fragmented permission APIs, with graceful fallbacks where the platform has none. |
-| [useOnlineStatus](docs/useOnlineStatus/README.md) | `navigator.onLine`'s false positive — an optional ping verifies there's actually internet, not just a network interface.      |
+| Hook                                              | What it fixes                                                                                                                                                   |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [usePermission](docs/usePermission/README.md)     | One reactive status + `request()` across the fragmented permission APIs, with graceful fallbacks where the platform has none.                                   |
+| [useOnlineStatus](docs/useOnlineStatus/README.md) | `navigator.onLine`'s false positive — an optional ping verifies there's actually internet, not just a network interface.                                        |
+| [useTabLeader](docs/useTabLeader/README.md)       | Every open tab running its own websocket/poller. Elects one leader via the Web Locks API — instant failover, no stale-lock heartbeat race.                      |
+| [useIdle](docs/useIdle/README.md)                 | Idle detection that survives a slept laptop and a throttled background tab — wall-clock verified, capture-phase, throttled instead of re-armed per `mousemove`. |
 
 ### Storage & persistence
 
@@ -99,13 +101,13 @@ import { useScrollAnchor, useLocalStorage } from 'react-kithooks';
 
 ### Async
 
-| Hook                                                        | What it fixes                                                                                                                                     |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [useAbortableFetch](docs/useAbortableFetch/README.md)       | The stale-response race in `useEffect(() => { fetch(url).then(setData) }, [id])` — superseded responses are discarded even when abort is ignored. |
-| [useAsyncQueue](docs/useAsyncQueue/README.md)               | Overlapping writes finishing out of order. Concurrency 1, per key, outside the React tree.                                                        |
-| [usePolling](docs/usePolling/README.md)                     | `setInterval` + `fetch`: overlapping ticks, a hidden tab polling all day, and a failing endpoint hammered at full rate.                           |
-| [useDebouncedValue](docs/useDebouncedValue/README.md)       | Debounce that also cancels when the value reverts within the window — type-and-undo produces no update.                                           |
-| [useDebouncedCallback](docs/useDebouncedCallback/README.md) | Stable identity, always calls the latest `fn`, with `flush`/`cancel`/`isPending`.                                                                 |
+| Hook                                                        | What it fixes                                                                                                                                            |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [useAbortableFetch](docs/useAbortableFetch/README.md)       | The stale-response race in `useEffect(() => { fetch(url).then(setData) }, [id])` — superseded responses are discarded even when abort is ignored.        |
+| [useAsyncQueue](docs/useAsyncQueue/README.md)               | Overlapping writes finishing out of order. A per-key mutex outside the React tree — or a bounded worker pool, cancellable, when you raise `concurrency`. |
+| [usePolling](docs/usePolling/README.md)                     | `setInterval` + `fetch`: overlapping ticks, a hidden tab polling all day, and a failing endpoint hammered at full rate.                                  |
+| [useDebouncedValue](docs/useDebouncedValue/README.md)       | Debounce that also cancels when the value reverts within the window — type-and-undo produces no update — and never starves, with `maxWaitMs`.            |
+| [useDebouncedCallback](docs/useDebouncedCallback/README.md) | Stable identity, always calls the latest `fn`, with `flush`/`cancel`/`isPending` and a `maxWaitMs` ceiling.                                              |
 
 ### Render bookkeeping
 
@@ -118,22 +120,24 @@ import { useScrollAnchor, useLocalStorage } from 'react-kithooks';
 
 All hooks touch `window`/`document`/`navigator` only inside effects or callback refs. Server-render values:
 
-| Hook                                    | Server value                          |
-| --------------------------------------- | ------------------------------------- |
-| `useScrollAnchor`                       | `isAtBottom: true`                    |
-| `useKeyboardScope`                      | `isTopMost: false`                    |
-| `useMediaQuery`                         | `serverFallback` (default `false`)    |
-| `usePermission`                         | `status: 'loading'`                   |
-| `useOnlineStatus`                       | `isOnline: true`                      |
-| `useLocalStorage` / `useSessionStorage` | `initialValue`                        |
-| `useIndexedDB`                          | `initialValue`, `status: 'loading'`   |
-| `useFormCrashRecovery`                  | `{ recovered: null, status: 'idle' }` |
-| `useAbortableFetch`                     | `status: 'idle'`                      |
-| `useAsyncQueue`                         | `{ status: 'idle', pending: 0 }`      |
-| `usePolling`                            | `status: 'idle'`, `isPaused: false`   |
-| `useDebouncedValue`                     | the current value                     |
-| `useIsFirstRender`                      | `true`                                |
-| `usePreviousValue`                      | `undefined`                           |
+| Hook                                    | Server value                                              |
+| --------------------------------------- | --------------------------------------------------------- |
+| `useScrollAnchor`                       | `isAtBottom: true`                                        |
+| `useKeyboardScope`                      | `isTopMost: false`                                        |
+| `useMediaQuery`                         | `serverFallback` (default `false`)                        |
+| `usePermission`                         | `status: 'loading'`                                       |
+| `useOnlineStatus`                       | `isOnline: true`                                          |
+| `useTabLeader`                          | `{ isLeader: false, status: 'pending', mechanism: null }` |
+| `useIdle`                               | `isIdle: false`                                           |
+| `useLocalStorage` / `useSessionStorage` | `initialValue`                                            |
+| `useIndexedDB`                          | `initialValue`, `status: 'loading'`                       |
+| `useFormCrashRecovery`                  | `{ recovered: null, status: 'idle' }`                     |
+| `useAbortableFetch`                     | `status: 'idle'`                                          |
+| `useAsyncQueue`                         | `{ status: 'idle', pending: 0, running: 0, queued: 0 }`   |
+| `usePolling`                            | `status: 'idle'`, `isPaused: false`                       |
+| `useDebouncedValue`                     | the current value                                         |
+| `useIsFirstRender`                      | `true`                                                    |
+| `usePreviousValue`                      | `undefined`                                               |
 
 No hydration mismatches.
 
