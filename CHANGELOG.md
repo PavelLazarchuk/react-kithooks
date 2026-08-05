@@ -1,5 +1,15 @@
 # react-kithooks
 
+## 1.5.0
+
+### Minor Changes
+
+- cca40ac: Add `useIndexedDBCollection` — a live view over a whole object store: cursor reads with `index`, `range`, `direction`, `limit` and `offset`, on-demand index creation, batched all-or-nothing `setMany`/`removeMany`, plus `count` and `iterate` for work too large to materialise. Writes from `useIndexedDB` and `useIndexedDBCollection` on the same store now refresh each other, in this tab and across tabs.
+
+### Patch Changes
+
+- cca40ac: Enforce per-hook bundle-size budgets in CI with size-limit, and document the measured sizes in the README.
+
 ## 1.4.0
 
 ### Minor Changes
