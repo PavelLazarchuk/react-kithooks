@@ -92,12 +92,13 @@ import { useScrollAnchor, useLocalStorage } from 'react-kithooks';
 
 ### Storage & persistence
 
-| Hook                                                        | What it fixes                                                                                                                                                          |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [useLocalStorage](docs/useLocalStorage/README.md)           | `useState` backed by `localStorage`, synced across tabs **and** across instances in the current tab (`syncTabs: false` to opt out), with parse/quota failures handled. |
-| [useSessionStorage](docs/useSessionStorage/README.md)       | Same API, tab-scoped lifetime — state that must not outlive the tab.                                                                                                   |
-| [useIndexedDB](docs/useIndexedDB/README.md)                 | `useState` backed by IndexedDB for large or structured data, with on-demand stores and cross-tab sync over `BroadcastChannel`.                                         |
-| [useFormCrashRecovery](docs/useFormCrashRecovery/README.md) | Form drafts that survive a crash: structured clone (Dates and Files intact), TTL, versioning, field exclusion, conflict handling. Never auto-restores.                 |
+| Hook                                                            | What it fixes                                                                                                                                                                   |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [useLocalStorage](docs/useLocalStorage/README.md)               | `useState` backed by `localStorage`, synced across tabs **and** across instances in the current tab (`syncTabs: false` to opt out), with parse/quota failures handled.          |
+| [useSessionStorage](docs/useSessionStorage/README.md)           | Same API, tab-scoped lifetime — state that must not outlive the tab.                                                                                                            |
+| [useIndexedDB](docs/useIndexedDB/README.md)                     | `useState` backed by IndexedDB for large or structured data, with on-demand stores and cross-tab sync over `BroadcastChannel`.                                                  |
+| [useIndexedDBCollection](docs/useIndexedDBCollection/README.md) | The other half of IndexedDB: cursor reads with `limit`/`offset`, queries by a declared index, and batched all-or-nothing writes — for stores too large to read a key at a time. |
+| [useFormCrashRecovery](docs/useFormCrashRecovery/README.md)     | Form drafts that survive a crash: structured clone (Dates and Files intact), TTL, versioning, field exclusion, conflict handling. Never auto-restores.                          |
 
 ### Async
 
@@ -131,6 +132,7 @@ All hooks touch `window`/`document`/`navigator` only inside effects or callback 
 | `useIdle`                               | `isIdle: false`                                                          |
 | `useLocalStorage` / `useSessionStorage` | `initialValue`                                                           |
 | `useIndexedDB`                          | `initialValue`, `status: 'loading'`                                      |
+| `useIndexedDBCollection`                | `{ items: [], records: [], status: 'loading' }`                          |
 | `useFormCrashRecovery`                  | `{ recovered: null, status: 'idle' }`                                    |
 | `useAbortableFetch`                     | `status: 'idle'`                                                         |
 | `useAsyncQueue`                         | `{ status: 'idle', pending: 0, running: 0, queued: 0, isPaused: false }` |
@@ -142,6 +144,35 @@ All hooks touch `window`/`document`/`navigator` only inside effects or callback 
 No hydration mismatches.
 
 Every build output carries the `'use client'` directive, so importing a hook from a Server Component marks the boundary instead of failing at runtime. You still choose where that boundary sits: importing into an existing `'use client'` file keeps it exactly where you put it.
+
+## Bundle size
+
+Zero runtime dependencies, so what you import is all you ship. Every hook is measured in CI against a budget it must stay under — brotli, minified, React excluded:
+
+| Import                                    | Size    |
+| ----------------------------------------- | ------- |
+| `useIsFirstRender`                        | 26 B    |
+| `usePreviousValue`                        | 54 B    |
+| `useMediaQuery`                           | 124 B   |
+| `useDebouncedCallback`                    | 265 B   |
+| `useDebouncedValue`                       | 391 B   |
+| `useAbortableFetch`                       | 512 B   |
+| `useOnlineStatus`                         | 655 B   |
+| `useLocalStorage` / `useSessionStorage`   | 871 B   |
+| `useScrollAnchor`                         | 1.13 kB |
+| `useIdle`                                 | 1.14 kB |
+| `useTabLeader`                            | 1.23 kB |
+| `useAsyncQueue`                           | 1.26 kB |
+| `usePermission`                           | 1.25 kB |
+| `usePolling`                              | 1.37 kB |
+| `useKeyboardScope`                        | 1.47 kB |
+| `useIndexedDB`                            | 2.45 kB |
+| `useIndexedDBCollection`                  | 2.83 kB |
+| `useFormCrashRecovery`                    | 3.32 kB |
+| `react-kithooks/useFormCrashRecovery/rhf` | 3.68 kB |
+| the entire kit, every hook from the root  | 13.0 kB |
+
+Run `npm run size` locally; budgets live in [.size-limit.json](.size-limit.json).
 
 ## License
 

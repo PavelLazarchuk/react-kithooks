@@ -1,0 +1,126 @@
+[
+    {
+        "name": "index (every hook)",
+        "path": "dist/index.js",
+        "limit": "14.5 kB"
+    },
+    {
+        "name": "useScrollAnchor",
+        "path": "dist/index.js",
+        "import": "{ useScrollAnchor }",
+        "limit": "1.3 kB"
+    },
+    {
+        "name": "usePermission",
+        "path": "dist/index.js",
+        "import": "{ usePermission }",
+        "limit": "1.45 kB"
+    },
+    {
+        "name": "useKeyboardScope",
+        "path": "dist/index.js",
+        "import": "{ useKeyboardScope }",
+        "limit": "1.7 kB"
+    },
+    {
+        "name": "useFormCrashRecovery",
+        "path": "dist/index.js",
+        "import": "{ useFormCrashRecovery }",
+        "limit": "3.7 kB"
+    },
+    {
+        "name": "useFormCrashRecovery/rhf",
+        "path": "dist/useFormCrashRecovery/rhf.js",
+        "limit": "4.1 kB"
+    },
+    {
+        "name": "useLocalStorage",
+        "path": "dist/index.js",
+        "import": "{ useLocalStorage }",
+        "limit": "1 kB"
+    },
+    {
+        "name": "useSessionStorage",
+        "path": "dist/index.js",
+        "import": "{ useSessionStorage }",
+        "limit": "1 kB"
+    },
+    {
+        "name": "useIndexedDB",
+        "path": "dist/index.js",
+        "import": "{ useIndexedDB }",
+        "limit": "2.8 kB"
+    },
+    {
+        "name": "useIndexedDBCollection",
+        "path": "dist/index.js",
+        "import": "{ useIndexedDBCollection }",
+        "limit": "3.2 kB"
+    },
+    {
+        "name": "useAsyncQueue",
+        "path": "dist/index.js",
+        "import": "{ useAsyncQueue }",
+        "limit": "1.45 kB"
+    },
+    {
+        "name": "useOnlineStatus",
+        "path": "dist/index.js",
+        "import": "{ useOnlineStatus }",
+        "limit": "800 B"
+    },
+    {
+        "name": "useIdle",
+        "path": "dist/index.js",
+        "import": "{ useIdle }",
+        "limit": "1.3 kB"
+    },
+    {
+        "name": "useTabLeader",
+        "path": "dist/index.js",
+        "import": "{ useTabLeader }",
+        "limit": "1.45 kB"
+    },
+    {
+        "name": "useAbortableFetch",
+        "path": "dist/index.js",
+        "import": "{ useAbortableFetch }",
+        "limit": "650 B"
+    },
+    {
+        "name": "usePolling",
+        "path": "dist/index.js",
+        "import": "{ usePolling }",
+        "limit": "1.6 kB"
+    },
+    {
+        "name": "useDebouncedValue",
+        "path": "dist/index.js",
+        "import": "{ useDebouncedValue }",
+        "limit": "500 B"
+    },
+    {
+        "name": "useDebouncedCallback",
+        "path": "dist/index.js",
+        "import": "{ useDebouncedCallback }",
+        "limit": "350 B"
+    },
+    {
+        "name": "useMediaQuery",
+        "path": "dist/index.js",
+        "import": "{ useMediaQuery }",
+        "limit": "200 B"
+    },
+    {
+        "name": "useIsFirstRender",
+        "path": "dist/index.js",
+        "import": "{ useIsFirstRender }",
+        "limit": "100 B"
+    },
+    {
+        "name": "usePreviousValue",
+        "path": "dist/index.js",
+        "import": "{ usePreviousValue }",
+        "limit": "100 B"
+    }
+]

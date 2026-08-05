@@ -36,6 +36,15 @@ export type { UseSessionStorageOptions, UseSessionStorageReturn } from './useSes
 export { useIndexedDB } from './useIndexedDB';
 export type { UseIndexedDBOptions, UseIndexedDBReturn, UseIndexedDBStatus } from './useIndexedDB';
 
+export { useIndexedDBCollection } from './useIndexedDBCollection';
+export type {
+    UseIndexedDBCollectionOptions,
+    UseIndexedDBCollectionReturn,
+    IndexedDBIndexes,
+    IndexedDBIndexDefinition,
+    IndexedDBRecord,
+} from './useIndexedDBCollection';
+
 export {
     useAsyncQueue,
     AsyncQueueProvider,

@@ -7,6 +7,40 @@ interface DbState {
     queue: AsyncQueue;
 }
 
+export interface IdbIndexDefinition {
+    keyPath: string | string[];
+    unique?: boolean;
+    multiEntry?: boolean;
+}
+
+export type IdbIndexes = Record<string, string | string[] | IdbIndexDefinition>;
+
+export interface IdbStoreRef {
+    dbName: string;
+    storeName: string;
+    indexes?: IdbIndexes;
+}
+
+export interface IdbRecord<T> {
+    key: IDBValidKey;
+    value: T;
+}
+
+export interface IdbQueryOptions {
+    index?: string;
+    range?: IDBKeyRange | IDBValidKey | null;
+    direction?: IDBCursorDirection;
+    limit?: number;
+    offset?: number;
+}
+
+interface NormalizedIndex {
+    name: string;
+    keyPath: string | string[];
+    unique: boolean;
+    multiEntry: boolean;
+}
+
 const dbStates = createKeyedCache<string, DbState>(() => ({
     db: null,
     queue: createAsyncQueue(),
@@ -16,20 +50,56 @@ export function idbSupported(): boolean {
     return typeof indexedDB !== 'undefined';
 }
 
+function normalizeIndexes(indexes: IdbIndexes | undefined): NormalizedIndex[] {
+    if (!indexes) return [];
+
+    return Object.entries(indexes).map(([name, definition]) => {
+        if (typeof definition === 'string' || Array.isArray(definition)) {
+            return { name, keyPath: definition, unique: false, multiEntry: false };
+        }
+
+        return {
+            name,
+            keyPath: definition.keyPath,
+            unique: definition.unique ?? false,
+            multiEntry: definition.multiEntry ?? false,
+        };
+    });
+}
+
+function applySchema(
+    db: IDBDatabase,
+    transaction: IDBTransaction | null,
+    storeName: string,
+    indexes: NormalizedIndex[]
+): void {
+    const store = db.objectStoreNames.contains(storeName)
+        ? transaction?.objectStore(storeName)
+        : db.createObjectStore(storeName);
+
+    if (!store) return;
+
+    for (const index of indexes) {
+        if (store.indexNames.contains(index.name)) continue;
+
+        store.createIndex(index.name, index.keyPath, {
+            unique: index.unique,
+            multiEntry: index.multiEntry,
+        });
+    }
+}
+
 function openAtVersion(
     dbName: string,
     version: number | undefined,
-    storeName: string
+    storeName: string,
+    indexes: NormalizedIndex[]
 ): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
         const req =
             version === undefined ? indexedDB.open(dbName) : indexedDB.open(dbName, version);
 
-        req.onupgradeneeded = () => {
-            if (!req.result.objectStoreNames.contains(storeName)) {
-                req.result.createObjectStore(storeName);
-            }
-        };
+        req.onupgradeneeded = () => applySchema(req.result, req.transaction, storeName, indexes);
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error ?? new Error('indexedDB open failed'));
         req.onblocked = () =>
@@ -39,18 +109,39 @@ function openAtVersion(
     });
 }
 
-function ensureStore(dbName: string, storeName: string): Promise<IDBDatabase> {
+function satisfiesSchema(db: IDBDatabase, storeName: string, indexes: NormalizedIndex[]): boolean {
+    if (!db.objectStoreNames.contains(storeName)) return false;
+    if (indexes.length === 0) return true;
+
+    const store = db.transaction(storeName, 'readonly').objectStore(storeName);
+
+    return indexes.every(index => store.indexNames.contains(index.name));
+}
+
+function ensureStore(
+    dbName: string,
+    storeName: string,
+    indexes?: IdbIndexes
+): Promise<IDBDatabase> {
     const state = dbStates.get(dbName);
+    const wanted = normalizeIndexes(indexes);
 
     return state.queue.enqueue(async () => {
-        if (state.db && state.db.objectStoreNames.contains(storeName)) {
+        if (state.db && satisfiesSchema(state.db, storeName, wanted)) {
             return state.db;
         }
 
         state.db?.close();
 
         const nextVersion = state.db ? state.db.version + 1 : undefined;
-        const db = await openAtVersion(dbName, nextVersion, storeName);
+        let db = await openAtVersion(dbName, nextVersion, storeName, wanted);
+
+        if (!satisfiesSchema(db, storeName, wanted)) {
+            const upgradeVersion = db.version + 1;
+
+            db.close();
+            db = await openAtVersion(dbName, upgradeVersion, storeName, wanted);
+        }
 
         db.onversionchange = () => {
             db.close();
@@ -61,6 +152,78 @@ function ensureStore(dbName: string, storeName: string): Promise<IDBDatabase> {
 
         return db;
     });
+}
+
+function runTransaction<T>(
+    db: IDBDatabase,
+    storeName: string,
+    mode: IDBTransactionMode,
+    label: string,
+    run: (store: IDBObjectStore) => () => T
+): Promise<T> {
+    return new Promise((resolve, reject) => {
+        const t = db.transaction(storeName, mode);
+        let readResult: () => T;
+
+        try {
+            readResult = run(t.objectStore(storeName));
+        } catch (error) {
+            reject(error);
+            t.abort();
+
+            return;
+        }
+
+        t.oncomplete = () => resolve(readResult());
+        t.onerror = () => reject(t.error ?? new Error(`indexedDB ${label} failed`));
+        t.onabort = () => reject(t.error ?? new Error('indexedDB transaction aborted'));
+    });
+}
+
+function cursorSource(store: IDBObjectStore, index: string | undefined): IDBObjectStore | IDBIndex {
+    return index === undefined ? store : store.index(index);
+}
+
+function cursorQuery(
+    range: IDBKeyRange | IDBValidKey | null | undefined
+): IDBKeyRange | IDBValidKey | undefined {
+    return range === null ? undefined : range;
+}
+
+function walk<T>(
+    store: IDBObjectStore,
+    options: IdbQueryOptions,
+    visit: (record: IdbRecord<T>) => boolean
+): void {
+    const { index, range, direction, limit } = options;
+
+    if (limit !== undefined && limit <= 0) return;
+
+    const offset = Math.max(0, Math.floor(options.offset ?? 0));
+    const req = cursorSource(store, index).openCursor(cursorQuery(range), direction);
+    let skipped = offset === 0;
+    let seen = 0;
+
+    req.onsuccess = () => {
+        const cursor = req.result;
+
+        if (!cursor) return;
+
+        if (!skipped) {
+            skipped = true;
+            cursor.advance(offset);
+
+            return;
+        }
+
+        if (!visit({ key: cursor.primaryKey, value: cursor.value as T })) return;
+
+        seen += 1;
+
+        if (limit !== undefined && seen >= limit) return;
+
+        cursor.continue();
+    };
 }
 
 export async function idbGet<T>(
@@ -131,6 +294,98 @@ export async function idbSweep(
         t.oncomplete = () => resolve();
         t.onerror = () => reject(t.error ?? new Error('indexedDB sweep failed'));
         t.onabort = () => reject(t.error ?? new Error('indexedDB transaction aborted'));
+    });
+}
+
+export async function idbGetMany<T>(
+    ref: IdbStoreRef,
+    keys: readonly string[]
+): Promise<(T | undefined)[]> {
+    const db = await ensureStore(ref.dbName, ref.storeName, ref.indexes);
+
+    return runTransaction(db, ref.storeName, 'readonly', 'getMany', store => {
+        const requests = keys.map(key => store.get(key));
+
+        return () => requests.map(req => req.result as T | undefined);
+    });
+}
+
+export async function idbSetMany<T>(
+    ref: IdbStoreRef,
+    records: readonly IdbRecord<T>[]
+): Promise<void> {
+    const db = await ensureStore(ref.dbName, ref.storeName, ref.indexes);
+
+    return runTransaction(db, ref.storeName, 'readwrite', 'setMany', store => {
+        for (const record of records) store.put(record.value, record.key);
+
+        return () => undefined;
+    });
+}
+
+export async function idbRemoveMany(ref: IdbStoreRef, keys: readonly string[]): Promise<void> {
+    const db = await ensureStore(ref.dbName, ref.storeName, ref.indexes);
+
+    return runTransaction(db, ref.storeName, 'readwrite', 'removeMany', store => {
+        for (const key of keys) store.delete(key);
+
+        return () => undefined;
+    });
+}
+
+export async function idbClear(ref: IdbStoreRef): Promise<void> {
+    const db = await ensureStore(ref.dbName, ref.storeName, ref.indexes);
+
+    return runTransaction(db, ref.storeName, 'readwrite', 'clear', store => {
+        store.clear();
+
+        return () => undefined;
+    });
+}
+
+export async function idbCount(
+    ref: IdbStoreRef,
+    options: Pick<IdbQueryOptions, 'index' | 'range'> = {}
+): Promise<number> {
+    const db = await ensureStore(ref.dbName, ref.storeName, ref.indexes);
+
+    return runTransaction(db, ref.storeName, 'readonly', 'count', store => {
+        const req = cursorSource(store, options.index).count(cursorQuery(options.range));
+
+        return () => req.result;
+    });
+}
+
+export async function idbQuery<T>(
+    ref: IdbStoreRef,
+    options: IdbQueryOptions = {}
+): Promise<IdbRecord<T>[]> {
+    const db = await ensureStore(ref.dbName, ref.storeName, ref.indexes);
+
+    return runTransaction(db, ref.storeName, 'readonly', 'query', store => {
+        const records: IdbRecord<T>[] = [];
+
+        walk<T>(store, options, record => {
+            records.push(record);
+
+            return true;
+        });
+
+        return () => records;
+    });
+}
+
+export async function idbIterate<T>(
+    ref: IdbStoreRef,
+    options: IdbQueryOptions,
+    visit: (record: IdbRecord<T>) => boolean | void
+): Promise<void> {
+    const db = await ensureStore(ref.dbName, ref.storeName, ref.indexes);
+
+    return runTransaction(db, ref.storeName, 'readonly', 'iterate', store => {
+        walk<T>(store, options, record => visit(record) !== false);
+
+        return () => undefined;
     });
 }
 

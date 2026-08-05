@@ -4,12 +4,14 @@ import { IDBFactory } from 'fake-indexeddb';
 
 import { useIndexedDB } from './index';
 import { DEFAULT_STORE_NAME, resetIndexedDBCacheForTests } from './db';
+import { resetStoreChangesForTests } from './changes';
 import { resetIndexedDBStoresForTests } from './store';
 
 function resetIdb() {
     (globalThis as any).indexedDB = new IDBFactory();
     resetIndexedDBCacheForTests();
     resetIndexedDBStoresForTests();
+    resetStoreChangesForTests();
 }
 
 describe('useIndexedDB', () => {
@@ -20,6 +22,7 @@ describe('useIndexedDB', () => {
     afterEach(() => {
         resetIndexedDBCacheForTests();
         resetIndexedDBStoresForTests();
+        resetStoreChangesForTests();
     });
 
     it('starts with the initial value while the first read is loading', () => {
@@ -151,9 +154,9 @@ describe('useIndexedDB', () => {
         const { idbSet } = await import('./db');
         await idbSet('db-11', DEFAULT_STORE_NAME, 'count', 42);
 
-        const { channelName } = await import('./store');
-        const foreign = new BroadcastChannel(channelName('db-11', DEFAULT_STORE_NAME, 'count'));
-        foreign.postMessage('changed');
+        const { channelName } = await import('./changes');
+        const foreign = new BroadcastChannel(channelName('db-11', DEFAULT_STORE_NAME));
+        foreign.postMessage({ key: 'count' });
 
         await waitFor(() => expect(result.current[0]).toBe(42));
         foreign.close();
@@ -171,9 +174,9 @@ describe('useIndexedDB', () => {
         await waitFor(() => expect(result.current[3]).toBe('ready'));
         unmount();
 
-        const { channelName } = await import('./store');
-        const foreign = new BroadcastChannel(channelName('db-13', DEFAULT_STORE_NAME, 'count'));
-        expect(() => foreign.postMessage('changed')).not.toThrow();
+        const { channelName } = await import('./changes');
+        const foreign = new BroadcastChannel(channelName('db-13', DEFAULT_STORE_NAME));
+        expect(() => foreign.postMessage({ key: 'count' })).not.toThrow();
         foreign.close();
     });
 

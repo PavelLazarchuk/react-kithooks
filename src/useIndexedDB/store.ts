@@ -1,3 +1,4 @@
+import { publishStoreChange, subscribeToStoreChanges } from './changes';
 import { idbGet, idbRemove, idbSet, idbSupported } from './db';
 import { createDisposeScheduler } from '../internal/disposeWhenUnused';
 import { createKeyedCache } from '../internal/keyedCache';
@@ -17,10 +18,6 @@ export interface IndexedDBStore<T> {
     remove: () => Promise<void>;
 }
 
-export function channelName(dbName: string, storeName: string, key: string): string {
-    return ['react-kithooks:idb', dbName, storeName, key].join(':');
-}
-
 function createStore<T>(
     dbName: string,
     storeName: string,
@@ -28,7 +25,7 @@ function createStore<T>(
     onDisposable: (store: IndexedDBStore<T>) => void
 ): IndexedDBStore<T> {
     let entry: IndexedDBEntry<T> = { status: 'loading', value: undefined };
-    let channel: BroadcastChannel | null = null;
+    let unsubscribeFromChanges: (() => void) | null = null;
     let inFlight = 0;
 
     const load = async () => {
@@ -48,16 +45,17 @@ function createStore<T>(
         }
     };
 
-    const attachChannel = () => {
-        if (channel || typeof BroadcastChannel === 'undefined') return;
-
-        channel = new BroadcastChannel(channelName(dbName, storeName, key));
-        channel.onmessage = () => void load();
+    const onStoreChange = (changedKey: string | null) => {
+        if (changedKey === null || changedKey === key) void load();
     };
 
-    const detachChannel = () => {
-        channel?.close();
-        channel = null;
+    const listenForChanges = () => {
+        unsubscribeFromChanges ??= subscribeToStoreChanges(dbName, storeName, onStoreChange);
+    };
+
+    const stopListeningForChanges = () => {
+        unsubscribeFromChanges?.();
+        unsubscribeFromChanges = null;
     };
 
     const write = async (op: () => Promise<void>, next: T | undefined) => {
@@ -67,7 +65,7 @@ function createStore<T>(
             await op();
             entry = { status: 'ready', value: next };
             lazyStore.notify();
-            channel?.postMessage('changed');
+            publishStoreChange(dbName, storeName, key, onStoreChange);
         } catch (err) {
             entry = { status: 'error', value: entry.value };
             lazyStore.notify();
@@ -92,11 +90,11 @@ function createStore<T>(
 
     const lazyStore = createLazyStore(
         () => {
-            attachChannel();
+            listenForChanges();
             void load();
         },
         () => {
-            detachChannel();
+            stopListeningForChanges();
             scheduleDispose();
         }
     );
