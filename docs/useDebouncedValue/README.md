@@ -106,6 +106,7 @@ With `controls: true`, a `DebouncedValue<T>`:
 ## Related
 
 - [useDebouncedCallback](../useDebouncedCallback/README.md) — debounce a function instead.
+- [useThrottledValue](../useThrottledValue/README.md) — for a value that must keep updating _during_ a stream (scroll, drag), not after it stops.
 - [useAbortableFetch](../useAbortableFetch/README.md) — the usual consumer of a debounced query.
 
 ## SSR

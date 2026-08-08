@@ -114,6 +114,28 @@ describe('useAbortableFetch', () => {
         expect(result.current.data).toBeUndefined();
     });
 
+    it('keeps an already loaded result when it is disabled, and refetches when re-enabled', async () => {
+        const fetcher = vi
+            .fn<(signal: AbortSignal) => Promise<string>>()
+            .mockResolvedValueOnce('first')
+            .mockResolvedValueOnce('second');
+
+        const { result, rerender } = renderHook(
+            ({ enabled }: { enabled: boolean }) => useAbortableFetch(fetcher, [], { enabled }),
+            { initialProps: { enabled: true } }
+        );
+        await waitFor(() => expect(result.current.data).toBe('first'));
+
+        rerender({ enabled: false });
+
+        expect(result.current.status).toBe('success');
+        expect(result.current.data).toBe('first');
+        expect(result.current.isFetching).toBe(false);
+
+        rerender({ enabled: true });
+        await waitFor(() => expect(result.current.data).toBe('second'));
+    });
+
     it('ignores an AbortError instead of surfacing it as the error status', async () => {
         const fetcher = vi.fn(
             (signal: AbortSignal) =>
@@ -144,8 +166,283 @@ describe('useAbortableFetch', () => {
         const { result } = renderHook(() => useAbortableFetch(fetcher, []));
         await waitFor(() => expect(result.current.status).toBe('success'));
 
-        act(() => result.current.refetch());
+        act(() => void result.current.refetch());
         await waitFor(() => expect(result.current.data).toBe('call-2'));
+    });
+
+    describe('isLoading vs isFetching', () => {
+        function setupRefetch(options?: { keepPreviousData?: boolean }) {
+            const pending = deferred<string>();
+            const fetcher = vi
+                .fn<(signal: AbortSignal) => Promise<string>>()
+                .mockResolvedValueOnce('first')
+                .mockReturnValueOnce(pending.promise);
+
+            return {
+                pending,
+                ...renderHook(() => useAbortableFetch(fetcher, [], options)),
+            };
+        }
+
+        it('separates the first load from a refetch over existing data', async () => {
+            const { result, pending } = setupRefetch();
+
+            expect(result.current.status).toBe('loading');
+            expect(result.current.isLoading).toBe(true);
+            expect(result.current.isFetching).toBe(true);
+
+            await waitFor(() => expect(result.current.status).toBe('success'));
+            expect(result.current.isFetching).toBe(false);
+
+            act(() => void result.current.refetch());
+
+            expect(result.current.status).toBe('success');
+            expect(result.current.isLoading).toBe(false);
+            expect(result.current.isFetching).toBe(true);
+            expect(result.current.data).toBe('first');
+
+            await act(async () => {
+                pending.resolve('second');
+                await pending.promise;
+            });
+            expect(result.current.data).toBe('second');
+            expect(result.current.isFetching).toBe(false);
+        });
+
+        it('reports loading again when a refetch has nothing to show', async () => {
+            const { result } = setupRefetch({ keepPreviousData: false });
+
+            await waitFor(() => expect(result.current.status).toBe('success'));
+
+            act(() => void result.current.refetch());
+
+            expect(result.current.status).toBe('loading');
+            expect(result.current.isLoading).toBe(true);
+        });
+
+        it('keeps the error status through a retry', async () => {
+            const pending = deferred<string>();
+            const fetcher = vi
+                .fn<(signal: AbortSignal) => Promise<string>>()
+                .mockRejectedValueOnce(new Error('boom'))
+                .mockReturnValueOnce(pending.promise);
+
+            const { result } = renderHook(() => useAbortableFetch(fetcher, []));
+            await waitFor(() => expect(result.current.status).toBe('error'));
+
+            act(() => void result.current.refetch());
+
+            expect(result.current.status).toBe('error');
+            expect(result.current.isFetching).toBe(true);
+        });
+    });
+
+    describe('refetch()', () => {
+        it('resolves once the request settles', async () => {
+            const pending = deferred<string>();
+            const fetcher = vi
+                .fn<(signal: AbortSignal) => Promise<string>>()
+                .mockResolvedValueOnce('first')
+                .mockReturnValueOnce(pending.promise);
+
+            const { result } = renderHook(() => useAbortableFetch(fetcher, []));
+            await waitFor(() => expect(result.current.status).toBe('success'));
+
+            let settled = false;
+            let promise!: Promise<void>;
+            act(() => {
+                promise = result.current.refetch();
+            });
+            void promise.then(() => {
+                settled = true;
+            });
+
+            await act(async () => {
+                await Promise.resolve();
+            });
+            expect(settled).toBe(false);
+
+            await act(async () => {
+                pending.resolve('second');
+                await promise;
+            });
+            expect(settled).toBe(true);
+            expect(result.current.data).toBe('second');
+        });
+
+        it('resolves rather than rejects when the request fails', async () => {
+            const fetcher = vi
+                .fn<(signal: AbortSignal) => Promise<string>>()
+                .mockResolvedValueOnce('good')
+                .mockRejectedValueOnce(new Error('boom'));
+
+            const { result } = renderHook(() => useAbortableFetch(fetcher, []));
+            await waitFor(() => expect(result.current.data).toBe('good'));
+
+            await act(async () => {
+                await expect(result.current.refetch()).resolves.toBeUndefined();
+            });
+
+            expect(result.current.status).toBe('error');
+            expect(result.current.isFetching).toBe(false);
+            expect(result.current.data).toBe('good');
+        });
+
+        it('settles a superseded promise instead of leaving it dangling', async () => {
+            const first = deferred<string>();
+            const second = deferred<string>();
+            const fetcher = vi
+                .fn<(signal: AbortSignal) => Promise<string>>()
+                .mockResolvedValueOnce('mount')
+                .mockReturnValueOnce(first.promise)
+                .mockReturnValueOnce(second.promise);
+
+            const { result } = renderHook(() => useAbortableFetch(fetcher, []));
+            await waitFor(() => expect(result.current.status).toBe('success'));
+
+            let superseded!: Promise<void>;
+            act(() => {
+                superseded = result.current.refetch();
+            });
+            let settled = false;
+            void superseded.then(() => {
+                settled = true;
+            });
+
+            act(() => void result.current.refetch());
+            await act(async () => {
+                await superseded;
+            });
+
+            expect(settled).toBe(true);
+        });
+    });
+
+    describe('cancel()', () => {
+        it('aborts the in-flight first load and returns to idle', () => {
+            const abortSpy = vi.fn();
+            const fetcher = vi.fn((signal: AbortSignal) => {
+                signal.addEventListener('abort', abortSpy);
+                return new Promise<string>(() => undefined);
+            });
+
+            const { result } = renderHook(() => useAbortableFetch(fetcher, []));
+            expect(result.current.isFetching).toBe(true);
+
+            act(() => result.current.cancel());
+
+            expect(abortSpy).toHaveBeenCalledTimes(1);
+            expect(result.current.status).toBe('idle');
+            expect(result.current.isFetching).toBe(false);
+        });
+
+        it('keeps data already on screen when it cancels a refetch', async () => {
+            const fetcher = vi
+                .fn<(signal: AbortSignal) => Promise<string>>()
+                .mockResolvedValueOnce('first')
+                .mockReturnValueOnce(new Promise<string>(() => undefined));
+
+            const { result } = renderHook(() => useAbortableFetch(fetcher, []));
+            await waitFor(() => expect(result.current.status).toBe('success'));
+
+            act(() => void result.current.refetch());
+            act(() => result.current.cancel());
+
+            expect(result.current.status).toBe('success');
+            expect(result.current.data).toBe('first');
+            expect(result.current.isFetching).toBe(false);
+        });
+
+        it('discards a response that arrives after it', async () => {
+            const inFlight = deferred<string>();
+            const fetcher = vi.fn(() => inFlight.promise);
+
+            const { result } = renderHook(() => useAbortableFetch(fetcher, []));
+            act(() => result.current.cancel());
+
+            inFlight.resolve('stale');
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            expect(result.current.data).toBeUndefined();
+            expect(result.current.status).toBe('idle');
+        });
+    });
+
+    describe('keepPreviousData', () => {
+        it('keeps the previous result while a new dep loads (default)', async () => {
+            const pending = deferred<string>();
+            const fetcher = vi
+                .fn<(signal: AbortSignal) => Promise<string>>()
+                .mockResolvedValueOnce('user-1')
+                .mockReturnValueOnce(pending.promise);
+
+            const { result, rerender } = renderHook(({ id }) => useAbortableFetch(fetcher, [id]), {
+                initialProps: { id: 1 },
+            });
+            await waitFor(() => expect(result.current.data).toBe('user-1'));
+
+            rerender({ id: 2 });
+
+            expect(result.current.data).toBe('user-1');
+            expect(result.current.status).toBe('success');
+            expect(result.current.isLoading).toBe(false);
+            expect(result.current.isFetching).toBe(true);
+        });
+
+        it('false clears data and reports a hard loading state', async () => {
+            const pending = deferred<string>();
+            const fetcher = vi
+                .fn<(signal: AbortSignal) => Promise<string>>()
+                .mockResolvedValueOnce('user-1')
+                .mockReturnValueOnce(pending.promise);
+
+            const { result, rerender } = renderHook(
+                ({ id }) => useAbortableFetch(fetcher, [id], { keepPreviousData: false }),
+                { initialProps: { id: 1 } }
+            );
+            await waitFor(() => expect(result.current.data).toBe('user-1'));
+
+            rerender({ id: 2 });
+
+            expect(result.current.data).toBeUndefined();
+            expect(result.current.status).toBe('loading');
+            expect(result.current.isLoading).toBe(true);
+        });
+
+        it('false also clears the previous error', async () => {
+            const pending = deferred<string>();
+            const fetcher = vi
+                .fn<(signal: AbortSignal) => Promise<string>>()
+                .mockRejectedValueOnce(new Error('boom'))
+                .mockReturnValueOnce(pending.promise);
+
+            const { result } = renderHook(() =>
+                useAbortableFetch(fetcher, [], { keepPreviousData: false })
+            );
+            await waitFor(() => expect(result.current.status).toBe('error'));
+
+            act(() => void result.current.refetch());
+
+            expect(result.current.error).toBeUndefined();
+            expect(result.current.status).toBe('loading');
+        });
+    });
+
+    it('treats a synchronous throw as an error rather than rejecting refetch()', async () => {
+        const fetcher = vi.fn((): Promise<string> => {
+            throw new Error('boom');
+        });
+        const { result } = renderHook(() => useAbortableFetch(fetcher, []));
+
+        await waitFor(() => expect(result.current.status).toBe('error'));
+        expect((result.current.error as Error).message).toBe('boom');
+        expect(result.current.isFetching).toBe(false);
+
+        await act(async () => {
+            await expect(result.current.refetch()).resolves.toBeUndefined();
+        });
     });
 
     describe('deps array misuse', () => {

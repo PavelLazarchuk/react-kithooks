@@ -85,7 +85,7 @@
         "name": "useAbortableFetch",
         "path": "dist/index.js",
         "import": "{ useAbortableFetch }",
-        "limit": "650 B"
+        "limit": "750 B"
     },
     {
         "name": "usePolling",
@@ -104,6 +104,18 @@
         "path": "dist/index.js",
         "import": "{ useDebouncedCallback }",
         "limit": "350 B"
+    },
+    {
+        "name": "useThrottledValue",
+        "path": "dist/index.js",
+        "import": "{ useThrottledValue }",
+        "limit": "550 B"
+    },
+    {
+        "name": "useThrottledCallback",
+        "path": "dist/index.js",
+        "import": "{ useThrottledCallback }",
+        "limit": "550 B"
     },
     {
         "name": "useMediaQuery",

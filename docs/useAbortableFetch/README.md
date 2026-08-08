@@ -29,6 +29,35 @@ const { data, isLoading, error, refetch } = useAbortableFetch(
 );
 ```
 
+A refresh that doesn't blank the page — `isLoading` is the first load, `isFetching` is any request in flight:
+
+```tsx
+const { data, isLoading, isFetching, refetch } = useAbortableFetch(
+    signal => api.getInbox({ signal }),
+    []
+);
+
+if (isLoading) return <Skeleton />; // only the first load
+
+return (
+    <>
+        <button onClick={() => refetch()} disabled={isFetching}>
+            {isFetching ? 'Refreshing…' : 'Refresh'}
+        </button>
+        <List items={data} />
+    </>
+);
+```
+
+`refetch()` resolves when the request settles, so a control can await its own work:
+
+```tsx
+const onPullToRefresh = async () => {
+    await refetch();
+    haptics.tap();
+};
+```
+
 Wait for a dependency:
 
 ```tsx
@@ -68,27 +97,36 @@ function useAbortableFetch<T>(
 
 ### Options
 
-| Option    | Type      | Default | Description                                                                            |
-| --------- | --------- | ------- | -------------------------------------------------------------------------------------- |
-| `enabled` | `boolean` | `true`  | When `false`, skips the fetcher and aborts anything in flight; `status` goes `'idle'`. |
+| Option             | Type      | Default | Description                                                                               |
+| ------------------ | --------- | ------- | ----------------------------------------------------------------------------------------- |
+| `enabled`          | `boolean` | `true`  | When `false`, skips the fetcher and aborts anything in flight. Keeps what's on screen.    |
+| `keepPreviousData` | `boolean` | `true`  | Keep `data` and `error` on screen while the next request runs. `false` clears them first. |
 
 ### Returns
 
-| Field       | Type                                          | Description                                                  |
-| ----------- | --------------------------------------------- | ------------------------------------------------------------ |
-| `data`      | `T \| undefined`                              | Last successful result. Kept while a new request is loading. |
-| `error`     | `unknown`                                     | Last error. Aborts never appear here.                        |
-| `status`    | `'idle' \| 'loading' \| 'success' \| 'error'` | Request state.                                               |
-| `isLoading` | `boolean`                                     | `status === 'loading'`                                       |
-| `refetch`   | `() => void`                                  | Re-runs the fetcher, aborting any in-flight call first.      |
+| Field        | Type                                          | Description                                                                                            |
+| ------------ | --------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `data`       | `T \| undefined`                              | Last successful result. Kept while a new request runs, unless you opt out.                             |
+| `error`      | `unknown`                                     | Last error. Aborts never appear here.                                                                  |
+| `status`     | `'idle' \| 'loading' \| 'success' \| 'error'` | Request state. Stays `'success'` through a refetch — it describes what you have, not what's in flight. |
+| `isLoading`  | `boolean`                                     | The **first** load: `status === 'loading'`, nothing to render yet.                                     |
+| `isFetching` | `boolean`                                     | **Any** request in flight, including refetches and dep changes.                                        |
+| `refetch`    | `() => Promise<void>`                         | Re-runs the fetcher, aborting any in-flight call first. Resolves when it settles.                      |
+| `cancel`     | `() => void`                                  | Aborts the in-flight request and stops fetching, keeping whatever is on screen.                        |
 
 ## Notes
 
+- **`isLoading` vs `isFetching`.** `isLoading` is true only while there is nothing to show — the first load, or any load after `keepPreviousData: false` cleared the data. `isFetching` is true whenever a request is in flight. Branch on the first for a skeleton and the second for a corner spinner; using `isLoading` for both is what makes a list flash empty on every refresh.
+- **`refetch()` never rejects.** It resolves once the request settles, whether it succeeded or failed — read `status`/`error` for the outcome. That keeps `void refetch()` and `onClick={() => refetch()}` free of unhandled rejections. It also resolves if the run is superseded or cancelled, so an awaited `refetch()` can't hang forever.
+- **`refetch()` returns a thenable**, so `act(() => refetch())` in a test now puts React's `act` into async mode. Use `act(() => void refetch())` where you don't intend to await it.
+- **`cancel()` is not `enabled: false`.** It stops the current request and leaves the hook where it is; a later dep change or `refetch()` starts fetching again. `enabled: false` keeps it stopped. Cancelling never discards `data` — the last result stays, and `status` reverts to whatever that result made it.
+- **A fetcher that throws synchronously is an error, not a crash** — it lands in `error` like any rejection instead of escaping into the effect.
+- **A failed request keeps the last good `data`**, so a transient error doesn't blank the page. `status` becomes `'error'` alongside it, and a retry keeps that status until it resolves.
+- The previous request is aborted on every dep change, on `refetch()`, on `cancel()`, and on unmount.
 - **An `AbortError` never surfaces as `'error'`** — cancelling is expected behavior, not a failure, so it doesn't paint an error state.
-- The previous request is aborted on every dep change, on `refetch()`, and on unmount.
 - `fetcher` is read from a ref, so it doesn't need to be memoized — only `deps` controls re-running. That also means **everything the fetcher reads must be in `deps`**, exactly like `useEffect`.
 - **`deps` must have the same length on every render.** A conditionally built array silently stops re-running the fetcher on the entries React can no longer see; use a stable placeholder (`null`) instead of adding or removing one. In development the hook warns by name when the length changes.
-- `data` is not cleared while a new request loads, so lists don't blank out between pages. Branch on `status` if you want a hard loading state.
+- **`keepPreviousData` is on by default**, so paging through a list doesn't blank it out between pages — the trade-off is that `data` briefly belongs to the _previous_ deps, which `isFetching` tells you. Set it to `false` when showing yesterday's record under today's id would be wrong; `data`, `error` and `status` then reset on every new request, `refetch()` included.
 - This is a fetch-on-render primitive, not a cache. If you need shared caching, deduplication, or revalidation, use TanStack Query or SWR — this hook is for the cases where a full data layer is more than you need.
 
 ## Related
@@ -98,7 +136,7 @@ function useAbortableFetch<T>(
 
 ## SSR
 
-`status` server-renders as `'idle'`; the fetcher only runs in an effect.
+`status` server-renders as `'idle'` with `isFetching: false`; the fetcher only runs in an effect.
 
 ---
 

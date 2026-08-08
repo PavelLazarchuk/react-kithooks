@@ -83,6 +83,7 @@ A callable with methods:
 ## Related
 
 - [useDebouncedValue](../useDebouncedValue/README.md) — debounce a value instead of a call.
+- [useThrottledCallback](../useThrottledCallback/README.md) — for a handler that must run _during_ a stream (scroll, pointer move), not after it stops.
 - [useAsyncQueue](../useAsyncQueue/README.md) — pair with it so the saves that do go out can't land out of order.
 
 ## SSR

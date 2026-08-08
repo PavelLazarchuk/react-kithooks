@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/react-kithooks.svg)](https://www.npmjs.com/package/react-kithooks)
 [![npm downloads](https://img.shields.io/npm/dm/react-kithooks.svg)](https://www.npmjs.com/package/react-kithooks)
 
-Production-grade React hooks for the hard 10% of browser UI — scroll anchoring, permissions, layered keyboard shortcuts, crash-safe form drafts, multi-tab-synced storage, real (not just `navigator.onLine`) connectivity, race-free async — plus the small utilities every app rewrites (debounce, media queries, render bookkeeping) with their known failure modes fixed.
+Production-grade React hooks for the hard 10% of browser UI — scroll anchoring, permissions, layered keyboard shortcuts, crash-safe form drafts, multi-tab-synced storage, real (not just `navigator.onLine`) connectivity, race-free async — plus the small utilities every app rewrites (debounce, throttle, media queries, render bookkeeping) with their known failure modes fixed.
 
 Each hook exists because the naive version has a known failure mode — viewport jumps when chat history loads, permission prompts that can't be re-asked, every modal closing on one Escape, form drafts destroyed by JSON serialization, saves that land out of order.
 
@@ -102,13 +102,15 @@ import { useScrollAnchor, useLocalStorage } from 'react-kithooks';
 
 ### Async
 
-| Hook                                                        | What it fixes                                                                                                                                                                                      |
-| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [useAbortableFetch](docs/useAbortableFetch/README.md)       | The stale-response race in `useEffect(() => { fetch(url).then(setData) }, [id])` — superseded responses are discarded even when abort is ignored.                                                  |
-| [useAsyncQueue](docs/useAsyncQueue/README.md)               | Overlapping writes finishing out of order. A per-key mutex outside the React tree — or a bounded worker pool with priorities, pause/resume, and per-key replacement, when you raise `concurrency`. |
-| [usePolling](docs/usePolling/README.md)                     | `setInterval` + `fetch`: overlapping ticks, a hidden tab polling all day, and a failing endpoint hammered at full rate.                                                                            |
-| [useDebouncedValue](docs/useDebouncedValue/README.md)       | Debounce that also cancels when the value reverts within the window — type-and-undo produces no update — never starves, with `maxWaitMs`, and can hand back `isPending`/`flush`/`cancel`.          |
-| [useDebouncedCallback](docs/useDebouncedCallback/README.md) | Stable identity, always calls the latest `fn`, with `flush`/`cancel`/`isPending` and a `maxWaitMs` ceiling.                                                                                        |
+| Hook                                                        | What it fixes                                                                                                                                                                                                           |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [useAbortableFetch](docs/useAbortableFetch/README.md)       | The stale-response race in `useEffect(() => { fetch(url).then(setData) }, [id])` — superseded responses are discarded even when abort is ignored. `isLoading` is the first load, `isFetching` is any request in flight. |
+| [useAsyncQueue](docs/useAsyncQueue/README.md)               | Overlapping writes finishing out of order. A per-key mutex outside the React tree — or a bounded worker pool with priorities, pause/resume, and per-key replacement, when you raise `concurrency`.                      |
+| [usePolling](docs/usePolling/README.md)                     | `setInterval` + `fetch`: overlapping ticks, a hidden tab polling all day, and a failing endpoint hammered at full rate.                                                                                                 |
+| [useDebouncedValue](docs/useDebouncedValue/README.md)       | Debounce that also cancels when the value reverts within the window — type-and-undo produces no update — never starves, with `maxWaitMs`, and can hand back `isPending`/`flush`/`cancel`.                               |
+| [useDebouncedCallback](docs/useDebouncedCallback/README.md) | Stable identity, always calls the latest `fn`, with `flush`/`cancel`/`isPending` and a `maxWaitMs` ceiling.                                                                                                             |
+| [useThrottledValue](docs/useThrottledValue/README.md)       | The other half of debounce, for streams you must react to _while_ they happen. The last change always lands — a plain throttle drops it and comes to rest one window stale.                                             |
+| [useThrottledCallback](docs/useThrottledCallback/README.md) | Same for a handler, with both edges configurable and `'frame'` as an interval — one call per paint instead of a ~16ms timer drifting across frames.                                                                     |
 
 ### Render bookkeeping
 
@@ -134,14 +136,15 @@ All hooks touch `window`/`document`/`navigator` only inside effects or callback 
 | `useIndexedDB`                          | `initialValue`, `status: 'loading'`                                      |
 | `useIndexedDBCollection`                | `{ items: [], records: [], status: 'loading' }`                          |
 | `useFormCrashRecovery`                  | `{ recovered: null, status: 'idle' }`                                    |
-| `useAbortableFetch`                     | `status: 'idle'`                                                         |
+| `useAbortableFetch`                     | `status: 'idle'`, `isFetching: false`                                    |
 | `useAsyncQueue`                         | `{ status: 'idle', pending: 0, running: 0, queued: 0, isPaused: false }` |
 | `usePolling`                            | `status: 'idle'`, `isPaused: false`                                      |
 | `useDebouncedValue`                     | the current value                                                        |
+| `useThrottledValue`                     | the current value                                                        |
 | `useIsFirstRender`                      | `true`                                                                   |
 | `usePreviousValue`                      | `undefined`                                                              |
 
-No hydration mismatches.
+No hydration mismatches. Every row above is asserted in [src/ssr.test.tsx](src/ssr.test.tsx), which renders each hook with `renderToString` in a DOM-less Node environment — so a hook that reached for `window` during render would fail CI rather than your build.
 
 Every build output carries the `'use client'` directive, so importing a hook from a Server Component marks the boundary instead of failing at runtime. You still choose where that boundary sits: importing into an existing `'use client'` file keeps it exactly where you put it.
 
@@ -149,28 +152,30 @@ Every build output carries the `'use client'` directive, so importing a hook fro
 
 Zero runtime dependencies, so what you import is all you ship. Every hook is measured in CI against a budget it must stay under — brotli, minified, React excluded:
 
-| Import                                    | Size    |
-| ----------------------------------------- | ------- |
-| `useIsFirstRender`                        | 26 B    |
-| `usePreviousValue`                        | 54 B    |
-| `useMediaQuery`                           | 124 B   |
-| `useDebouncedCallback`                    | 265 B   |
-| `useDebouncedValue`                       | 391 B   |
-| `useAbortableFetch`                       | 512 B   |
-| `useOnlineStatus`                         | 655 B   |
-| `useLocalStorage` / `useSessionStorage`   | 871 B   |
-| `useScrollAnchor`                         | 1.13 kB |
-| `useIdle`                                 | 1.14 kB |
-| `useTabLeader`                            | 1.23 kB |
-| `useAsyncQueue`                           | 1.26 kB |
-| `usePermission`                           | 1.25 kB |
-| `usePolling`                              | 1.37 kB |
-| `useKeyboardScope`                        | 1.47 kB |
-| `useIndexedDB`                            | 2.45 kB |
-| `useIndexedDBCollection`                  | 2.83 kB |
-| `useFormCrashRecovery`                    | 3.32 kB |
-| `react-kithooks/useFormCrashRecovery/rhf` | 3.68 kB |
-| the entire kit, every hook from the root  | 13.0 kB |
+| Import                                    | Size     |
+| ----------------------------------------- | -------- |
+| `useIsFirstRender`                        | 26 B     |
+| `usePreviousValue`                        | 54 B     |
+| `useMediaQuery`                           | 124 B    |
+| `useDebouncedCallback`                    | 265 B    |
+| `useDebouncedValue`                       | 383 B    |
+| `useThrottledValue`                       | 460 B    |
+| `useThrottledCallback`                    | 471 B    |
+| `useOnlineStatus`                         | 648 B    |
+| `useAbortableFetch`                       | 669 B    |
+| `useLocalStorage` / `useSessionStorage`   | 871 B    |
+| `useScrollAnchor`                         | 1.13 kB  |
+| `useIdle`                                 | 1.14 kB  |
+| `useTabLeader`                            | 1.23 kB  |
+| `useAsyncQueue`                           | 1.25 kB  |
+| `usePermission`                           | 1.26 kB  |
+| `usePolling`                              | 1.37 kB  |
+| `useKeyboardScope`                        | 1.47 kB  |
+| `useIndexedDB`                            | 2.45 kB  |
+| `useIndexedDBCollection`                  | 2.83 kB  |
+| `useFormCrashRecovery`                    | 3.32 kB  |
+| `react-kithooks/useFormCrashRecovery/rhf` | 3.68 kB  |
+| the entire kit, every hook from the root  | 13.62 kB |
 
 Run `npm run size` locally; budgets live in [.size-limit.json](.size-limit.json).
 

@@ -93,6 +93,18 @@ export type {
 export { useDebouncedCallback } from './useDebouncedCallback';
 export type { DebouncedCallback, UseDebouncedCallbackOptions } from './useDebouncedCallback';
 
+export { useThrottledValue } from './useThrottledValue';
+export type {
+    UseThrottledValueOptions,
+    UseThrottledValueControlsOptions,
+    ThrottledValue,
+} from './useThrottledValue';
+
+export { useThrottledCallback } from './useThrottledCallback';
+export type { ThrottledCallback, UseThrottledCallbackOptions } from './useThrottledCallback';
+
+export type { ThrottleInterval } from './internal/throttleSchedule';
+
 export { useMediaQuery } from './useMediaQuery';
 export type { UseMediaQueryOptions } from './useMediaQuery';
 
