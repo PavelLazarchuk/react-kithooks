@@ -38,6 +38,7 @@ export interface UseAsyncQueueReturn {
     cancel: (key: string) => number;
     pause: () => void;
     resume: () => void;
+    idle: () => Promise<void>;
 }
 
 export interface AsyncQueueProviderProps {
@@ -88,6 +89,11 @@ export function AsyncQueueProvider(props: AsyncQueueProviderProps) {
  *
  * Dropping a task rejects its promise but is not routed to `onError` — a
  * superseded save is the queue doing its job, not a failure worth reporting.
+ *
+ * `await idle()` waits for the queue to drain — for the "block navigation
+ * until the autosaves land" case, where the caller holds no handle on the
+ * individual `enqueue()` promises because the work was fired and forgotten
+ * from a dozen different fields.
  */
 export function useAsyncQueue(
     key?: string,
@@ -139,6 +145,7 @@ export function useAsyncQueue(
     const cancel = useCallback((taskKey: string) => queue.cancel(taskKey), [queue]);
     const pause = useCallback(() => queue.pause(), [queue]);
     const resume = useCallback(() => queue.resume(), [queue]);
+    const idle = useCallback(() => queue.idle(), [queue]);
 
     const snapshot = useSyncExternalStore(queue.subscribe, queue.getSnapshot, queue.getSnapshot);
 
@@ -153,5 +160,6 @@ export function useAsyncQueue(
         cancel,
         pause,
         resume,
+        idle,
     };
 }

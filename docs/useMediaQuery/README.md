@@ -59,6 +59,8 @@ function useMediaQuery(query: string, options?: UseMediaQueryOptions): boolean;
 - **`serverFallback` costs a re-render when it's wrong.** Pick the value matching the majority of your first paints (usually `true` for a desktop-first app) to minimize post-hydration flicker.
 - Layout that _must_ be correct on the very first paint belongs in CSS, not here — this hook is for behavior (which component to mount, whether to animate), not for hiding a mismatch.
 - Falls back to the legacy `addListener`/`removeListener` API on Safari < 14, which lacks `MediaQueryList.addEventListener`.
+- **One `MediaQueryList` per query string, built on first use and reused by every component reading that query** — `matchMedia()` is not re-run per render or per snapshot read. Each instance still subscribes for itself, so the list is dropped by nobody and listeners are cleaned up on unmount.
+- Lists are cached for the lifetime of the page. That is a handful of objects for the handful of query literals an app uses; build queries from changing values (a width from a slider) and the cache grows with them — another reason to pass a stable string.
 - Changing `query` re-subscribes and re-reads immediately — pass a stable string, not one rebuilt per render from unstable parts.
 
 ## SSR

@@ -101,6 +101,21 @@ const onRemove = (file: File) => cancel(`file:${file.name}`);
 }
 ```
 
+Waiting for the backlog to land before leaving the page:
+
+```tsx
+const { enqueue, idle } = useAsyncQueue('draft:autosave');
+
+// every field fires and forgets — nobody holds these promises
+const onChange = (patch: Patch) => void enqueue(() => api.save(patch));
+
+const onNavigate = async (to: string) => {
+    setLeaving(true);
+    await idle();
+    router.push(to);
+};
+```
+
 ## Which queue you get
 
 |                                   | no `key`                                    | with `key`                                    |
@@ -143,6 +158,7 @@ function useAsyncQueue(key?: string, options?: UseAsyncQueueOptions): UseAsyncQu
 | `cancel`   | `(key: string) => number`                                             | Same, narrowed to the not-yet-started tasks carrying that `key`.                     |
 | `pause`    | `() => void`                                                          | Stops admitting tasks. Running ones finish; queued ones wait.                        |
 | `resume`   | `() => void`                                                          | Starts admitting again, in priority order.                                           |
+| `idle`     | `() => Promise<void>`                                                 | Resolves once nothing is running and nothing is waiting. Already resolved if so.     |
 
 ### EnqueueOptions
 
@@ -184,6 +200,8 @@ Gives every keyless `useAsyncQueue()` in the subtree one shared queue.
 - **Dropped tasks are not routed to `onError`.** A queue that drops a task is doing what it was told; reporting every superseded autosave as an error would bury the real ones. `onError` sees only what the task itself threw. To observe cancellations, catch the promise from `enqueue`.
 - **`key` in `enqueue` is not the `key` of `useAsyncQueue`.** The hook's key names the queue; this one names a slot _inside_ it.
 - **`pause()` holds the queue, it doesn't empty it** — nothing already running is interrupted. A paused queue is also never garbage-collected while unobserved, so a keyed queue paused in one component is still paused when the next one mounts; pair every `pause()` with a `resume()` or work will sit there indefinitely.
+- **`idle()` resolves when the queue drains, whatever the tasks did.** It's the answer to "is it safe to navigate away", which is a question about the queue, not about the work — a task that threw still drained. To know whether the work succeeded, await the `enqueue()` promises or pass `onError`. Work queued after it resolved starts a fresh cycle and needs a fresh `idle()`.
+- **`idle()` on a paused queue with tasks in line never resolves** until something drains it — `resume()` or `clear()`. That's the honest answer (nothing is being saved), but it means "flush before navigating" and "pause while offline" need to be reconciled by you: `resume()` first, or time the wait out.
 - **Keyed queues are global, and released once nothing observes them and nothing is left to run.** A queue with work still in it is never dropped — the next component to use that key joins the same queue, which is what keeps ordering intact across an unmount.
 
 ## Related

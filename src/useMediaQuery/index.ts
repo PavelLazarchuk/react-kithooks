@@ -1,5 +1,7 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
+import { getMediaQueryList } from './store';
+
 export interface UseMediaQueryOptions {
     serverFallback?: boolean;
 }
@@ -12,13 +14,17 @@ export interface UseMediaQueryOptions {
  * applies right after — no mismatch error. Falls back to the legacy
  * `addListener` API on old Safari (< 14), which lacks
  * `MediaQueryList.addEventListener`.
+ *
+ * The `MediaQueryList` for a query is built once and reused by every instance
+ * reading that query, rather than rebuilt on each render and each snapshot
+ * read.
  */
 export function useMediaQuery(query: string, options?: UseMediaQueryOptions): boolean {
     const serverFallback = options?.serverFallback ?? false;
 
     const subscribe = useCallback(
         (onChange: () => void) => {
-            const mql = window.matchMedia(query);
+            const mql = getMediaQueryList(query);
 
             if (typeof mql.addEventListener === 'function') {
                 mql.addEventListener('change', onChange);
@@ -34,7 +40,7 @@ export function useMediaQuery(query: string, options?: UseMediaQueryOptions): bo
         [query]
     );
 
-    const getSnapshot = useCallback(() => window.matchMedia(query).matches, [query]);
+    const getSnapshot = useCallback(() => getMediaQueryList(query).matches, [query]);
     const getServerSnapshot = useCallback(() => serverFallback, [serverFallback]);
 
     return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);

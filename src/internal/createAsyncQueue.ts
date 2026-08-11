@@ -21,6 +21,7 @@ export interface AsyncQueue {
     getSnapshot: () => AsyncQueueSnapshot;
     subscribe: (listener: () => void) => () => void;
     isDisposable: () => boolean;
+    idle: () => Promise<void>;
     clear: () => number;
     cancel: (key: string) => number;
     pause: () => void;
@@ -87,8 +88,11 @@ export function createAsyncQueue(options: CreateAsyncQueueOptions = {}): AsyncQu
     let snapshot: AsyncQueueSnapshot = IDLE;
     const listeners = createListenerSet();
 
-    const isDisposable = () =>
-        running === 0 && queue.length === 0 && listeners.size === 0 && !paused;
+    const idleWaiters: Array<() => void> = [];
+
+    const isDrained = () => running === 0 && queue.length === 0;
+
+    const isDisposable = () => isDrained() && listeners.size === 0 && !paused;
 
     const reportDisposable = () => {
         if (isDisposable()) options.onDisposable?.();
@@ -101,9 +105,15 @@ export function createAsyncQueue(options: CreateAsyncQueueOptions = {}): AsyncQu
         return queue.length > 0 ? 'running' : 'idle';
     };
 
+    const resolveIdleWaiters = () => {
+        if (!isDrained() || idleWaiters.length === 0) return;
+
+        for (const resolve of idleWaiters.splice(0, idleWaiters.length)) resolve();
+    };
+
     const publish = () => {
         snapshot =
-            running === 0 && queue.length === 0 && !paused
+            isDrained() && !paused
                 ? IDLE
                 : {
                       status: status(),
@@ -113,7 +123,16 @@ export function createAsyncQueue(options: CreateAsyncQueueOptions = {}): AsyncQu
                       isPaused: paused,
                   };
         listeners.notify();
+        resolveIdleWaiters();
         reportDisposable();
+    };
+
+    const idle = (): Promise<void> => {
+        if (isDrained()) return Promise.resolve();
+
+        return new Promise<void>(resolve => {
+            idleWaiters.push(resolve);
+        });
     };
 
     const pump = () => {
@@ -248,6 +267,7 @@ export function createAsyncQueue(options: CreateAsyncQueueOptions = {}): AsyncQu
         getSnapshot: () => snapshot,
         subscribe,
         isDisposable,
+        idle,
         clear,
         cancel,
         pause,

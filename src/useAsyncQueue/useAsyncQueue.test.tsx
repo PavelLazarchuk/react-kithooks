@@ -981,6 +981,201 @@ describe('useAsyncQueue', () => {
         });
     });
 
+    describe('idle', () => {
+        it('resolves immediately when nothing is in flight', async () => {
+            const { result } = renderHook(() => useAsyncQueue());
+
+            await expect(result.current.idle()).resolves.toBeUndefined();
+        });
+
+        it('waits for the running task and everything behind it', async () => {
+            const gate = deferred();
+            const settled: string[] = [];
+            const { result } = renderHook(() => useAsyncQueue());
+
+            act(() => {
+                void result.current.enqueue(async () => {
+                    await gate.promise;
+                    settled.push('a');
+                });
+                void result.current.enqueue(async () => {
+                    settled.push('b');
+                });
+            });
+            await flush();
+
+            let drained = false;
+            const idle = result.current.idle().then(() => {
+                drained = true;
+            });
+
+            await flush();
+            expect(drained).toBe(false);
+            expect(settled).toEqual([]);
+
+            await act(async () => {
+                gate.resolve();
+                await idle;
+            });
+
+            expect(drained).toBe(true);
+            expect(settled).toEqual(['a', 'b']);
+            expect(result.current.status).toBe('idle');
+        });
+
+        it('resolves after a failing task — draining is not the same as succeeding', async () => {
+            const gate = deferred();
+            const { result } = renderHook(() => useAsyncQueue());
+
+            act(() => {
+                result.current
+                    .enqueue(async () => {
+                        await gate.promise;
+                        throw new Error('boom');
+                    })
+                    .catch(() => undefined);
+            });
+            await flush();
+
+            let drained = false;
+            const idle = result.current.idle().then(() => {
+                drained = true;
+            });
+
+            await flush();
+            expect(drained).toBe(false);
+
+            await act(async () => {
+                gate.resolve();
+                await idle;
+            });
+
+            expect(drained).toBe(true);
+        });
+
+        it('stays pending while a paused queue still holds tasks', async () => {
+            const started: string[] = [];
+            const { result } = renderHook(() => useAsyncQueue());
+
+            act(() => {
+                result.current.pause();
+            });
+            act(() => {
+                void result.current.enqueue(async () => {
+                    started.push('a');
+                });
+            });
+            await flush();
+
+            let drained = false;
+            const idle = result.current.idle().then(() => {
+                drained = true;
+            });
+
+            await flush();
+            expect(drained).toBe(false);
+
+            act(() => {
+                result.current.resume();
+            });
+            await act(async () => {
+                await idle;
+            });
+
+            expect(drained).toBe(true);
+            expect(started).toEqual(['a']);
+        });
+
+        it('counts a cleared task as drained, but still waits for the running one', async () => {
+            const gate = deferred();
+            const { result } = renderHook(() => useAsyncQueue());
+
+            act(() => {
+                void result.current.enqueue(async () => {
+                    await gate.promise;
+                });
+                result.current.enqueue(async () => undefined).catch(() => undefined);
+            });
+            await flush();
+
+            let drained = false;
+            const idle = result.current.idle().then(() => {
+                drained = true;
+            });
+
+            act(() => {
+                result.current.clear();
+            });
+            await flush();
+            expect(drained).toBe(false);
+
+            await act(async () => {
+                gate.resolve();
+                await idle;
+            });
+
+            expect(drained).toBe(true);
+        });
+
+        it('resolves every waiter, including one from another component on the same key', async () => {
+            const gate = deferred();
+            const first = renderHook(() => useAsyncQueue('drain:shared'));
+            const second = renderHook(() => useAsyncQueue('drain:shared'));
+
+            act(() => {
+                void first.result.current.enqueue(async () => {
+                    await gate.promise;
+                });
+            });
+            await flush();
+
+            const drained: string[] = [];
+            const a = first.result.current.idle().then(() => drained.push('a'));
+            const b = second.result.current.idle().then(() => drained.push('b'));
+
+            await flush();
+            expect(drained).toEqual([]);
+
+            await act(async () => {
+                gate.resolve();
+                await Promise.all([a, b]);
+            });
+
+            expect(drained).toEqual(['a', 'b']);
+        });
+
+        it('starts a fresh cycle for work enqueued after it drained', async () => {
+            const { result } = renderHook(() => useAsyncQueue());
+            const gate = deferred();
+
+            await act(async () => {
+                await result.current.idle();
+            });
+
+            act(() => {
+                void result.current.enqueue(async () => {
+                    await gate.promise;
+                });
+            });
+            await flush();
+
+            let drained = false;
+            const idle = result.current.idle().then(() => {
+                drained = true;
+            });
+
+            await flush();
+            expect(drained).toBe(false);
+
+            await act(async () => {
+                gate.resolve();
+                await idle;
+            });
+
+            expect(drained).toBe(true);
+        });
+    });
+
     describe('keyed tasks', () => {
         it('replace drops the task still waiting under the same key', async () => {
             const gate = deferred();

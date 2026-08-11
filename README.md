@@ -102,22 +102,22 @@ import { useScrollAnchor, useLocalStorage } from 'react-kithooks';
 
 ### Async
 
-| Hook                                                        | What it fixes                                                                                                                                                                                                           |
-| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [useAbortableFetch](docs/useAbortableFetch/README.md)       | The stale-response race in `useEffect(() => { fetch(url).then(setData) }, [id])` — superseded responses are discarded even when abort is ignored. `isLoading` is the first load, `isFetching` is any request in flight. |
-| [useAsyncQueue](docs/useAsyncQueue/README.md)               | Overlapping writes finishing out of order. A per-key mutex outside the React tree — or a bounded worker pool with priorities, pause/resume, and per-key replacement, when you raise `concurrency`.                      |
-| [usePolling](docs/usePolling/README.md)                     | `setInterval` + `fetch`: overlapping ticks, a hidden tab polling all day, and a failing endpoint hammered at full rate.                                                                                                 |
-| [useDebouncedValue](docs/useDebouncedValue/README.md)       | Debounce that also cancels when the value reverts within the window — type-and-undo produces no update — never starves, with `maxWaitMs`, and can hand back `isPending`/`flush`/`cancel`.                               |
-| [useDebouncedCallback](docs/useDebouncedCallback/README.md) | Stable identity, always calls the latest `fn`, with `flush`/`cancel`/`isPending` and a `maxWaitMs` ceiling.                                                                                                             |
-| [useThrottledValue](docs/useThrottledValue/README.md)       | The other half of debounce, for streams you must react to _while_ they happen. The last change always lands — a plain throttle drops it and comes to rest one window stale.                                             |
-| [useThrottledCallback](docs/useThrottledCallback/README.md) | Same for a handler, with both edges configurable and `'frame'` as an interval — one call per paint instead of a ~16ms timer drifting across frames.                                                                     |
+| Hook                                                        | What it fixes                                                                                                                                                                                                               |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [useAbortableFetch](docs/useAbortableFetch/README.md)       | The stale-response race in `useEffect(() => { fetch(url).then(setData) }, [id])` — superseded responses are discarded even when abort is ignored. `isLoading` is the first load, `isFetching` is any request in flight.     |
+| [useAsyncQueue](docs/useAsyncQueue/README.md)               | Overlapping writes finishing out of order. A per-key mutex outside the React tree — or a bounded worker pool with priorities, pause/resume, per-key replacement, and `await idle()` to drain, when you raise `concurrency`. |
+| [usePolling](docs/usePolling/README.md)                     | `setInterval` + `fetch`: overlapping ticks, a hidden tab polling all day, and a failing endpoint hammered at full rate.                                                                                                     |
+| [useDebouncedValue](docs/useDebouncedValue/README.md)       | Debounce that also cancels when the value reverts within the window — type-and-undo produces no update — never starves, with `maxWaitMs`, and can hand back `isPending`/`flush`/`cancel`.                                   |
+| [useDebouncedCallback](docs/useDebouncedCallback/README.md) | Stable identity, always calls the latest `fn`, with `flush`/`cancel`/`isPending` and a `maxWaitMs` ceiling.                                                                                                                 |
+| [useThrottledValue](docs/useThrottledValue/README.md)       | The other half of debounce, for streams you must react to _while_ they happen. The last change always lands — a plain throttle drops it and comes to rest one window stale.                                                 |
+| [useThrottledCallback](docs/useThrottledCallback/README.md) | Same for a handler, with both edges configurable and `'frame'` as an interval — one call per paint instead of a ~16ms timer drifting across frames.                                                                         |
 
 ### Render bookkeeping
 
-| Hook                                                | What it fixes                                                                |
-| --------------------------------------------------- | ---------------------------------------------------------------------------- |
-| [useIsFirstRender](docs/useIsFirstRender/README.md) | First-render detection that doesn't diverge between StrictMode dev and prod. |
-| [usePreviousValue](docs/usePreviousValue/README.md) | The previous **distinct** value — not "whatever it was at the last commit".  |
+| Hook                                                | What it fixes                                                                                                        |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| [useIsFirstRender](docs/useIsFirstRender/README.md) | First-render detection that doesn't diverge between StrictMode dev and prod.                                         |
+| [usePreviousValue](docs/usePreviousValue/README.md) | The previous **distinct** value — not "whatever it was at the last commit", with an optional comparator for objects. |
 
 ## SSR / Next.js
 
@@ -155,8 +155,8 @@ Zero runtime dependencies, so what you import is all you ship. Every hook is mea
 | Import                                    | Size     |
 | ----------------------------------------- | -------- |
 | `useIsFirstRender`                        | 26 B     |
-| `usePreviousValue`                        | 54 B     |
-| `useMediaQuery`                           | 124 B    |
+| `usePreviousValue`                        | 58 B     |
+| `useMediaQuery`                           | 162 B    |
 | `useDebouncedCallback`                    | 265 B    |
 | `useDebouncedValue`                       | 383 B    |
 | `useThrottledValue`                       | 460 B    |
@@ -167,15 +167,15 @@ Zero runtime dependencies, so what you import is all you ship. Every hook is mea
 | `useScrollAnchor`                         | 1.13 kB  |
 | `useIdle`                                 | 1.14 kB  |
 | `useTabLeader`                            | 1.23 kB  |
-| `useAsyncQueue`                           | 1.25 kB  |
 | `usePermission`                           | 1.26 kB  |
+| `useAsyncQueue`                           | 1.34 kB  |
 | `usePolling`                              | 1.37 kB  |
 | `useKeyboardScope`                        | 1.47 kB  |
-| `useIndexedDB`                            | 2.45 kB  |
-| `useIndexedDBCollection`                  | 2.83 kB  |
-| `useFormCrashRecovery`                    | 3.32 kB  |
-| `react-kithooks/useFormCrashRecovery/rhf` | 3.68 kB  |
-| the entire kit, every hook from the root  | 13.62 kB |
+| `useIndexedDB`                            | 2.51 kB  |
+| `useIndexedDBCollection`                  | 2.89 kB  |
+| `useFormCrashRecovery`                    | 3.37 kB  |
+| `react-kithooks/useFormCrashRecovery/rhf` | 3.75 kB  |
+| the entire kit, every hook from the root  | 13.78 kB |
 
 Run `npm run size` locally; budgets live in [.size-limit.json](.size-limit.json).
 

@@ -1,8 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 
 import { useMediaQuery } from './index';
+import { resetMediaQueryListsForTests } from './store';
 
 type ChangeListener = () => void;
 
@@ -29,34 +30,43 @@ function installMatchMedia(opts: { legacy?: boolean } = {}) {
         return list;
     };
 
+    let calls = 0;
+
     vi.stubGlobal('matchMedia', (query: string) => {
+        calls += 1;
         const list = getList(query);
-        const base = {
+        const mql: Record<string, unknown> = {
             get matches() {
                 return list.matches;
             },
             media: query,
         };
+
         if (opts.legacy) {
-            return {
-                ...base,
-                addListener: (l: ChangeListener) => list.listeners.add(l),
-                removeListener: (l: ChangeListener) => list.listeners.delete(l),
-            } as unknown as MediaQueryList;
+            mql.addListener = (l: ChangeListener) => list.listeners.add(l);
+            mql.removeListener = (l: ChangeListener) => list.listeners.delete(l);
+        } else {
+            mql.addEventListener = (_: 'change', l: ChangeListener) => list.listeners.add(l);
+            mql.removeEventListener = (_: 'change', l: ChangeListener) => list.listeners.delete(l);
         }
-        return {
-            ...base,
-            addEventListener: (_: 'change', l: ChangeListener) => list.listeners.add(l),
-            removeEventListener: (_: 'change', l: ChangeListener) => list.listeners.delete(l),
-        } as unknown as MediaQueryList;
+
+        return mql as unknown as MediaQueryList;
     });
 
-    return { setMatches: (query: string, m: boolean) => getList(query).setMatches(m) };
+    return {
+        setMatches: (query: string, m: boolean) => getList(query).setMatches(m),
+        matchMediaCalls: () => calls,
+        listenerCount: (query: string) => getList(query).listeners.size,
+    };
 }
 
 const QUERY = '(min-width: 768px)';
 
 describe('useMediaQuery', () => {
+    beforeEach(() => {
+        resetMediaQueryListsForTests();
+    });
+
     afterEach(() => {
         vi.unstubAllGlobals();
     });
@@ -106,6 +116,77 @@ describe('useMediaQuery', () => {
         expect(result.current).toBe(true);
         act(() => media.setMatches(other, false));
         expect(result.current).toBe(false);
+    });
+
+    describe('cached MediaQueryList', () => {
+        it('builds one list however many components read the query', () => {
+            const media = installMatchMedia();
+
+            const a = renderHook(() => useMediaQuery(QUERY));
+            const b = renderHook(() => useMediaQuery(QUERY));
+            const c = renderHook(() => useMediaQuery(QUERY));
+
+            expect(media.matchMediaCalls()).toBe(1);
+            expect(media.listenerCount(QUERY)).toBe(3);
+
+            act(() => media.setMatches(QUERY, true));
+
+            expect(a.result.current).toBe(true);
+            expect(b.result.current).toBe(true);
+            expect(c.result.current).toBe(true);
+        });
+
+        it('keeps a list per distinct query', () => {
+            const media = installMatchMedia();
+            const other = '(min-width: 1200px)';
+
+            renderHook(() => useMediaQuery(QUERY));
+            renderHook(() => useMediaQuery(other));
+
+            expect(media.matchMediaCalls()).toBe(2);
+            expect(media.listenerCount(QUERY)).toBe(1);
+            expect(media.listenerCount(other)).toBe(1);
+        });
+
+        it('does not re-read matchMedia on re-render', () => {
+            const media = installMatchMedia();
+            const { rerender } = renderHook(() => useMediaQuery(QUERY));
+
+            rerender();
+            rerender();
+            act(() => media.setMatches(QUERY, true));
+            rerender();
+
+            expect(media.matchMediaCalls()).toBe(1);
+        });
+
+        it('leaves no listener behind when a reader unmounts', () => {
+            const media = installMatchMedia();
+
+            const a = renderHook(() => useMediaQuery(QUERY));
+            const b = renderHook(() => useMediaQuery(QUERY));
+
+            a.unmount();
+            expect(media.listenerCount(QUERY)).toBe(1);
+
+            b.unmount();
+            expect(media.listenerCount(QUERY)).toBe(0);
+        });
+
+        it('reuses the list on a later mount instead of rebuilding it', () => {
+            const media = installMatchMedia();
+
+            const { unmount } = renderHook(() => useMediaQuery(QUERY));
+            unmount();
+
+            const { result } = renderHook(() => useMediaQuery(QUERY));
+
+            expect(media.matchMediaCalls()).toBe(1);
+            expect(media.listenerCount(QUERY)).toBe(1);
+
+            act(() => media.setMatches(QUERY, true));
+            expect(result.current).toBe(true);
+        });
     });
 
     it('server render returns serverFallback and never touches matchMedia', () => {
