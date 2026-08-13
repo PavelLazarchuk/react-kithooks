@@ -1,5 +1,23 @@
 # react-kithooks
 
+## 1.7.1
+
+### Patch Changes
+
+- 1c6e04c: Fix a leaked IndexedDB connection after a blocked upgrade, affecting `useIndexedDB`, `useIndexedDBCollection` and `useFormCrashRecovery`.
+
+    Creating a store or an index bumps the database version, and another tab holding the database open blocks that upgrade. The blocked open was reported as a failure — correctly — but rejecting a promise cannot cancel an `IDBOpenDBRequest`, and IndexedDB offers no way to cancel one. So when the other tab eventually closed, the upgrade went through anyway and handed back a connection nothing held a reference to. Being unreachable, it could never be closed, and it blocked every subsequent upgrade of that database for the rest of the page's life — turning one transient conflict into a permanent one. Such a connection is now closed as soon as it arrives.
+
+- 1c6e04c: **`useLocalStorage` / `useSessionStorage` hand back a stable `setValue` again when `serialize`/`deserialize` are passed inline.** Both were dependencies of the `useCallback`, and options are normally written as an object literal — so a custom serializer was a fresh function on every render, `setValue` changed identity every render, and any memoized child or effect depending on it re-ran on every pass. They now live in refs, like the other option callbacks in this package; the latest one is still what gets called.
+
+    **`useMediaQuery` no longer throws where `matchMedia` is unavailable.** Reading `window.matchMedia(query)` unguarded threw a `TypeError` in webviews and test environments that don't implement it, taking the render down with it. Such an environment now reports `false` and stays inert, and the hook picks the real API up if it appears later. The per-query cache is also bounded now, so an app deriving queries from a live value can't grow it without limit. The standalone import grows from 162 B to 222 B.
+
+- 1c6e04c: Fix two stale-state bugs that only show up after the first mount.
+
+    **`useOnlineStatus` (and `usePolling` with `pauseWhenOffline`) reported a stale network state after a remount.** The shared store outlives its subscribers, but its `online`/`offline` listeners are attached only while something is subscribed. So a connection that dropped while nothing was mounted was never observed, and the next mount kept reporting the old value until the browser happened to fire another event — a poller could stay parked as "offline" after the network came back, or hammer a dead network believing it was up. The store now re-reads `navigator.onLine` when it re-attaches.
+
+    **`useScrollAnchor` could stop honoring user scrolls, leaving the view pinned to the anchor.** Scrolls the hook performs itself were tracked with a counter that assumed one scroll event per `scrollTop` assignment. Browsers coalesce several assignments made in the same frame into a single event — which `handleMutations` and a resize can easily produce — so the counter drifted upward, and each surplus count swallowed a real user scroll. A swallowed scroll never released the post-prepend settle window, so the next content resize yanked the reader back to the anchor. Programmatic scrolls are now recognised by the position they land on rather than by counting events, which is exact under coalescing and self-correcting when an assignment can't reach its target.
+
 ## 1.7.0
 
 ### Minor Changes
