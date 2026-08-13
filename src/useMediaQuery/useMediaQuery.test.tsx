@@ -173,6 +173,18 @@ describe('useMediaQuery', () => {
             expect(media.listenerCount(QUERY)).toBe(0);
         });
 
+        it('drops the cache instead of growing without bound on rotating queries', () => {
+            const media = installMatchMedia();
+
+            for (let i = 0; i < 201; i += 1) {
+                const { unmount } = renderHook(() => useMediaQuery(`(min-width: ${i}px)`));
+                unmount();
+            }
+
+            renderHook(() => useMediaQuery('(min-width: 0px)'));
+            expect(media.matchMediaCalls()).toBe(202);
+        });
+
         it('reuses the list on a later mount instead of rebuilding it', () => {
             const media = installMatchMedia();
 
@@ -187,6 +199,26 @@ describe('useMediaQuery', () => {
             act(() => media.setMatches(QUERY, true));
             expect(result.current).toBe(true);
         });
+    });
+
+    it('reports false instead of throwing where matchMedia is unavailable', () => {
+        vi.stubGlobal('matchMedia', undefined);
+
+        const { result, rerender } = renderHook(() => useMediaQuery(QUERY));
+
+        expect(result.current).toBe(false);
+        expect(() => rerender()).not.toThrow();
+    });
+
+    it('picks matchMedia up if the environment gains it later', () => {
+        vi.stubGlobal('matchMedia', undefined);
+        renderHook(() => useMediaQuery(QUERY)).unmount();
+
+        const media = installMatchMedia();
+        media.setMatches(QUERY, true);
+
+        const { result } = renderHook(() => useMediaQuery(QUERY));
+        expect(result.current).toBe(true);
     });
 
     it('server render returns serverFallback and never touches matchMedia', () => {

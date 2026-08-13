@@ -277,6 +277,58 @@ describe('useScrollAnchor', () => {
         });
     });
 
+    it('releases the anchor on a user scroll that follows an unreported programmatic one', async () => {
+        const resizeCallbacks: ResizeObserverCallback[] = [];
+        class StubResizeObserver {
+            constructor(callback: ResizeObserverCallback) {
+                resizeCallbacks.push(callback);
+            }
+            observe() {}
+            unobserve() {}
+            disconnect() {}
+        }
+        vi.stubGlobal('ResizeObserver', StubResizeObserver);
+
+        try {
+            const box = makeScrollable({ scrollTop: 0 });
+            const anchor = addChild(box.el, 0);
+            const { result } = renderHook(() => useScrollAnchor({ initialScrollToBottom: false }));
+            act(() => result.current.ref(box.el));
+            box.setScrollTop(0);
+
+            act(() => result.current.scrollToBottom());
+            box.setScrollHeight(1200);
+            act(() => result.current.scrollToBottom());
+            act(() => {
+                box.el.dispatchEvent(new Event('scroll'));
+            });
+
+            act(() => {
+                result.current.prepend(() => {
+                    box.el.insertBefore(document.createElement('div'), anchor);
+                    setOffsetTop(anchor, 300);
+                    box.setScrollHeight(1500);
+                });
+            });
+            await flushMutations();
+
+            box.setScrollTop(50);
+            act(() => {
+                box.el.dispatchEvent(new Event('scroll'));
+            });
+
+            act(() => {
+                for (const callback of resizeCallbacks) {
+                    callback([], {} as ResizeObserver);
+                }
+            });
+
+            expect(box.scrollTop()).toBe(50);
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
     it('clears the pending anchor timer when the component unmounts', () => {
         vi.useFakeTimers();
         try {

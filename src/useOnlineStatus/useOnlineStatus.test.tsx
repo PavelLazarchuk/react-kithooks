@@ -76,6 +76,17 @@ describe('useOnlineStatus', () => {
         expect(() => act(() => fireBrowserEvent('offline'))).not.toThrow();
     });
 
+    it('re-reads navigator.onLine when a subscriber remounts after a gap', () => {
+        const first = renderHook(() => useOnlineStatus());
+        expect(first.result.current.isOnline).toBe(true);
+        first.unmount();
+
+        setNavigatorOnLine(false);
+
+        const second = renderHook(() => useOnlineStatus());
+        expect(second.result.current.isOnline).toBe(false);
+    });
+
     it('without pingUrl, recheck() resolves to navigator.onLine and does not fetch', async () => {
         const fetchSpy = vi.spyOn(globalThis, 'fetch');
         const { result } = renderHook(() => useOnlineStatus());

@@ -99,13 +99,36 @@ function openAtVersion(
         const req =
             version === undefined ? indexedDB.open(dbName) : indexedDB.open(dbName, version);
 
+        let settled = false;
+
         req.onupgradeneeded = () => applySchema(req.result, req.transaction, storeName, indexes);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error ?? new Error('indexedDB open failed'));
-        req.onblocked = () =>
+
+        req.onsuccess = () => {
+            if (settled) {
+                req.result.close();
+
+                return;
+            }
+
+            settled = true;
+            resolve(req.result);
+        };
+
+        req.onerror = () => {
+            if (settled) return;
+
+            settled = true;
+            reject(req.error ?? new Error('indexedDB open failed'));
+        };
+
+        req.onblocked = () => {
+            if (settled) return;
+
+            settled = true;
             reject(
                 new Error(`indexedDB upgrade of "${dbName}" blocked by another open tab/connection`)
             );
+        };
     });
 }
 

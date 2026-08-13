@@ -121,7 +121,7 @@
         "name": "useMediaQuery",
         "path": "dist/index.js",
         "import": "{ useMediaQuery }",
-        "limit": "200 B"
+        "limit": "250 B"
     },
     {
         "name": "useIsFirstRender",

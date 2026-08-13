@@ -213,6 +213,37 @@ describe('useLocalStorage', () => {
             expect(result.current[1]).toBe(first);
         });
 
+        it('keeps setValue identity stable when serialize/deserialize are inline', () => {
+            const { result, rerender } = renderHook(() =>
+                useLocalStorage('when', new Date(0), {
+                    serialize: (value: Date) => value.toISOString(),
+                    deserialize: (raw: string) => new Date(raw),
+                })
+            );
+            const first = result.current[1];
+
+            rerender();
+            rerender();
+
+            expect(result.current[1]).toBe(first);
+        });
+
+        it('uses the latest serialize even though it is held in a ref', () => {
+            const { result, rerender } = renderHook(
+                ({ prefix }: { prefix: string }) =>
+                    useLocalStorage('tagged', 'a', {
+                        serialize: (value: string) => prefix + value,
+                        deserialize: (raw: string) => raw,
+                    }),
+                { initialProps: { prefix: 'v1:' } }
+            );
+
+            rerender({ prefix: 'v2:' });
+            act(() => result.current[1]('b'));
+
+            expect(localStorage.getItem('tagged')).toBe('v2:b');
+        });
+
         it('re-writing the value another tab already stored still updates this tab', () => {
             const { result } = renderHook(() => useLocalStorage('count', 0, isolated));
 

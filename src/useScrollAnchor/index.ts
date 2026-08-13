@@ -46,7 +46,7 @@ export function useScrollAnchor<T extends HTMLElement = HTMLDivElement>(
 
     const elRef = useRef<T | null>(null);
     const atBottomRef = useRef(true);
-    const programmaticCountRef = useRef(0);
+    const programmaticTopRef = useRef<number | null>(null);
     const pendingRef = useRef<PendingAnchor | null>(null);
     const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const settleAnchorRef = useRef<PendingAnchor | null>(null);
@@ -63,7 +63,7 @@ export function useScrollAnchor<T extends HTMLElement = HTMLDivElement>(
 
         if (Math.abs(el.scrollTop - target) < 1) return;
 
-        programmaticCountRef.current += 1;
+        programmaticTopRef.current = target;
         el.scrollTop = target;
     }, []);
 
@@ -174,6 +174,7 @@ export function useScrollAnchor<T extends HTMLElement = HTMLDivElement>(
             cleanupRef.current?.();
             cleanupRef.current = null;
             elRef.current = node;
+            programmaticTopRef.current = null;
 
             if (!node) return;
 
@@ -190,8 +191,10 @@ export function useScrollAnchor<T extends HTMLElement = HTMLDivElement>(
             const cleanups: Array<() => void> = [];
 
             const onScroll = () => {
-                if (programmaticCountRef.current > 0) {
-                    programmaticCountRef.current -= 1;
+                const programmaticTop = programmaticTopRef.current;
+
+                if (programmaticTop !== null && Math.abs(node.scrollTop - programmaticTop) < 1) {
+                    programmaticTopRef.current = null;
                     updateAtBottom();
 
                     return;
@@ -200,6 +203,7 @@ export function useScrollAnchor<T extends HTMLElement = HTMLDivElement>(
                     return;
                 }
 
+                programmaticTopRef.current = null;
                 cancelSettleWindow();
                 updateAtBottom();
             };

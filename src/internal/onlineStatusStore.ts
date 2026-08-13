@@ -45,6 +45,12 @@ function createStore(): OnlineStatusStore {
 
         window.addEventListener('online', handleBrowserEvent);
         window.addEventListener('offline', handleBrowserEvent);
+
+        // The store outlives its subscribers. Between the last unsubscribe and
+        // this re-attach nobody was listening for `online`/`offline`, so the
+        // snapshot can describe a network state several events out of date —
+        // re-read it instead of reporting the stale one until the next event.
+        if (typeof navigator !== 'undefined') set(navigator.onLine);
     };
 
     const detach = () => {

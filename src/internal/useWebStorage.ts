@@ -25,10 +25,16 @@ export function useWebStorage<T>(
     options?: UseWebStorageOptions<T>
 ): UseWebStorageReturn<T> {
     const store = getStore(key);
-    const serialize = options?.serialize ?? (JSON.stringify as (value: T) => string);
-    const deserialize = options?.deserialize ?? (JSON.parse as (raw: string) => T);
     const syncTabs = options?.syncTabs ?? true;
     const readRaw = syncTabs ? store.getSnapshot : store.getLocalSnapshot;
+
+    const serialize = options?.serialize ?? (JSON.stringify as (value: T) => string);
+    const deserialize = options?.deserialize ?? (JSON.parse as (raw: string) => T);
+
+    const serializeRef = useRef(serialize);
+    serializeRef.current = serialize;
+    const deserializeRef = useRef(deserialize);
+    deserializeRef.current = deserialize;
 
     const initialRef = useRef<{ key: string; value: T } | null>(null);
 
@@ -51,13 +57,13 @@ export function useWebStorage<T>(
         }
 
         try {
-            const value = deserialize(raw);
+            const value = deserializeRef.current(raw);
             parsedRef.current = { raw, value };
             return value;
         } catch {
             return getInitial();
         }
-    }, [readRaw, deserialize]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [readRaw]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const getServerSnapshot = useCallback(
         () => getInitial(),
@@ -70,9 +76,9 @@ export function useWebStorage<T>(
         (next: T | ((prev: T) => T)) => {
             const resolved =
                 typeof next === 'function' ? (next as (prev: T) => T)(getSnapshot()) : next;
-            store.set(serialize(resolved));
+            store.set(serializeRef.current(resolved));
         },
-        [store, serialize, readRaw] // eslint-disable-line react-hooks/exhaustive-deps
+        [store, getSnapshot]
     );
 
     const removeValue = useCallback(() => store.set(null), [store]);
