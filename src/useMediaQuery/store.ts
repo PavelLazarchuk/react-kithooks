@@ -30,6 +30,21 @@ export function getMediaQueryList(query: string): MediaQueryList {
     return list;
 }
 
+export function subscribeToMediaQuery(query: string, onChange: () => void): () => void {
+    const mql = getMediaQueryList(query);
+
+    if (typeof mql.addEventListener === 'function') {
+        mql.addEventListener('change', onChange);
+
+        return () => mql.removeEventListener('change', onChange);
+    }
+
+    // Safari < 14
+    mql.addListener(onChange);
+
+    return () => mql.removeListener(onChange);
+}
+
 export function resetMediaQueryListsForTests(): void {
     lists.clear();
 }

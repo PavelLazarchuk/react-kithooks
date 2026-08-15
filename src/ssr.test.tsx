@@ -9,6 +9,7 @@ import {
     KeyboardScopeProvider,
     useAbortableFetch,
     useAsyncQueue,
+    useBreakpoint,
     useDebouncedCallback,
     useDebouncedValue,
     useFormCrashRecovery,
@@ -22,6 +23,8 @@ import {
     useOnlineStatus,
     usePermission,
     usePolling,
+    usePrefersColorScheme,
+    usePrefersReducedMotion,
     usePreviousValue,
     useScrollAnchor,
     useSessionStorage,
@@ -89,6 +92,22 @@ describe('SSR', () => {
             expect(ssr(() => useMediaQuery('(min-width: 600px)', { serverFallback: true }))).toBe(
                 true
             );
+        });
+
+        it('useBreakpoint returns the base name', () => {
+            expect(ssr(() => useBreakpoint({ sm: 640, lg: 1024 }))).toBe('base');
+            expect(ssr(() => useBreakpoint({ sm: 640 }, { base: 'xs' }))).toBe('xs');
+            expect(ssr(() => useBreakpoint({ sm: 640 }, { serverFallback: 'sm' }))).toBe('sm');
+        });
+
+        it('usePrefersColorScheme is light', () => {
+            expect(ssr(() => usePrefersColorScheme())).toBe('light');
+            expect(ssr(() => usePrefersColorScheme({ serverFallback: 'dark' }))).toBe('dark');
+        });
+
+        it('usePrefersReducedMotion is false', () => {
+            expect(ssr(() => usePrefersReducedMotion())).toBe(false);
+            expect(ssr(() => usePrefersReducedMotion({ serverFallback: true }))).toBe(true);
         });
     });
 

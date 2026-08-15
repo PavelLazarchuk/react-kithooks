@@ -2,7 +2,7 @@
     {
         "name": "index (every hook)",
         "path": "dist/index.js",
-        "limit": "14.5 kB"
+        "limit": "15 kB"
     },
     {
         "name": "useScrollAnchor",
@@ -122,6 +122,24 @@
         "path": "dist/index.js",
         "import": "{ useMediaQuery }",
         "limit": "250 B"
+    },
+    {
+        "name": "useBreakpoint",
+        "path": "dist/index.js",
+        "import": "{ useBreakpoint }",
+        "limit": "700 B"
+    },
+    {
+        "name": "usePrefersColorScheme",
+        "path": "dist/index.js",
+        "import": "{ usePrefersColorScheme }",
+        "limit": "300 B"
+    },
+    {
+        "name": "usePrefersReducedMotion",
+        "path": "dist/index.js",
+        "import": "{ usePrefersReducedMotion }",
+        "limit": "300 B"
     },
     {
         "name": "useIsFirstRender",

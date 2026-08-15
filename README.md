@@ -7,7 +7,7 @@ Production-grade React hooks for the hard 10% of browser UI — scroll anchoring
 
 Each hook exists because the naive version has a known failure mode — viewport jumps when chat history loads, permission prompts that can't be re-asked, every modal closing on one Escape, form drafts destroyed by JSON serialization, saves that land out of order.
 
-- **TypeScript-first**, ESM + CJS, `sideEffects: false`
+- **TypeScript-first** (5.4+, for `NoInfer`), ESM + CJS, `sideEffects: false`
 - **SSR-safe** (Next.js App Router) — every hook is import-safe and first-render-stable on the server
 - **Zero runtime dependencies** (react-hook-form is an optional peer used only by one opt-in subpath)
 
@@ -75,11 +75,14 @@ import { useScrollAnchor, useLocalStorage } from 'react-kithooks';
 
 ### UI & interaction
 
-| Hook                                                | What it fixes                                                                                                                                                 |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [useScrollAnchor](docs/useScrollAnchor/README.md)   | Viewport jump when prepending to a scrollable list, and stick-to-bottom that respects the reader. Element anchoring, so async content above doesn't break it. |
-| [useKeyboardScope](docs/useKeyboardScope/README.md) | Layered shortcuts: the top-most scope suspends the ones below, and Escape only ever reaches one layer.                                                        |
-| [useMediaQuery](docs/useMediaQuery/README.md)       | `matchMedia` that neither throws on the server nor mismatches on hydration.                                                                                   |
+| Hook                                                              | What it fixes                                                                                                                                                                    |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [useScrollAnchor](docs/useScrollAnchor/README.md)                 | Viewport jump when prepending to a scrollable list, and stick-to-bottom that respects the reader. Element anchoring, so async content above doesn't break it.                    |
+| [useKeyboardScope](docs/useKeyboardScope/README.md)               | Layered shortcuts: the top-most scope suspends the ones below, and Escape only ever reaches one layer.                                                                           |
+| [useMediaQuery](docs/useMediaQuery/README.md)                     | `matchMedia` that neither throws on the server nor mismatches on hydration.                                                                                                      |
+| [useBreakpoint](docs/useBreakpoint/README.md)                     | The current breakpoint name, typed from your own scale. Re-renders when the viewport crosses one — not on every pixel of a `resize`, and never off-by-a-scrollbar from your CSS. |
+| [usePrefersColorScheme](docs/usePrefersColorScheme/README.md)     | The system light/dark preference, as the default for a theme rather than a hydration mismatch.                                                                                   |
+| [usePrefersReducedMotion](docs/usePrefersReducedMotion/README.md) | The accessibility setting CSS can honor but your spring physics and confetti can't reach.                                                                                        |
 
 ### Browser capabilities
 
@@ -128,6 +131,9 @@ All hooks touch `window`/`document`/`navigator` only inside effects or callback 
 | `useScrollAnchor`                       | `isAtBottom: true`                                                       |
 | `useKeyboardScope`                      | `isTopMost: false`                                                       |
 | `useMediaQuery`                         | `serverFallback` (default `false`)                                       |
+| `useBreakpoint`                         | `serverFallback` (default: the `base` name)                              |
+| `usePrefersColorScheme`                 | `serverFallback` (default `'light'`)                                     |
+| `usePrefersReducedMotion`               | `serverFallback` (default `false`)                                       |
 | `usePermission`                         | `status: 'loading'`                                                      |
 | `useOnlineStatus`                       | `isOnline: true`                                                         |
 | `useTabLeader`                          | `{ isLeader: false, status: 'pending', mechanism: null }`                |
@@ -156,11 +162,14 @@ Zero runtime dependencies, so what you import is all you ship. Every hook is mea
 | ----------------------------------------- | -------- |
 | `useIsFirstRender`                        | 26 B     |
 | `usePreviousValue`                        | 58 B     |
-| `useMediaQuery`                           | 162 B    |
+| `useMediaQuery`                           | 229 B    |
 | `useDebouncedCallback`                    | 265 B    |
+| `usePrefersReducedMotion`                 | 265 B    |
+| `usePrefersColorScheme`                   | 285 B    |
 | `useDebouncedValue`                       | 383 B    |
 | `useThrottledValue`                       | 460 B    |
 | `useThrottledCallback`                    | 471 B    |
+| `useBreakpoint`                           | 646 B    |
 | `useOnlineStatus`                         | 648 B    |
 | `useAbortableFetch`                       | 669 B    |
 | `useLocalStorage` / `useSessionStorage`   | 871 B    |

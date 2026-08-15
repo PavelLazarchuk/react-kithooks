@@ -108,6 +108,15 @@ export type { ThrottleInterval } from './internal/throttleSchedule';
 export { useMediaQuery } from './useMediaQuery';
 export type { UseMediaQueryOptions } from './useMediaQuery';
 
+export { useBreakpoint } from './useBreakpoint';
+export type { UseBreakpointOptions, Breakpoints, BreakpointValue } from './useBreakpoint';
+
+export { usePrefersColorScheme } from './usePrefersColorScheme';
+export type { UsePrefersColorSchemeOptions, ColorScheme } from './usePrefersColorScheme';
+
+export { usePrefersReducedMotion } from './usePrefersReducedMotion';
+export type { UsePrefersReducedMotionOptions } from './usePrefersReducedMotion';
+
 export { useIsFirstRender } from './useIsFirstRender';
 
 export { usePreviousValue } from './usePreviousValue';

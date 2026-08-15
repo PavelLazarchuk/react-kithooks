@@ -1,6 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
-import { getMediaQueryList } from './store';
+import { getMediaQueryList, subscribeToMediaQuery } from './store';
 
 export interface UseMediaQueryOptions {
     serverFallback?: boolean;
@@ -23,20 +23,7 @@ export function useMediaQuery(query: string, options?: UseMediaQueryOptions): bo
     const serverFallback = options?.serverFallback ?? false;
 
     const subscribe = useCallback(
-        (onChange: () => void) => {
-            const mql = getMediaQueryList(query);
-
-            if (typeof mql.addEventListener === 'function') {
-                mql.addEventListener('change', onChange);
-
-                return () => mql.removeEventListener('change', onChange);
-            }
-
-            // Safari < 14
-            mql.addListener(onChange);
-
-            return () => mql.removeListener(onChange);
-        },
+        (onChange: () => void) => subscribeToMediaQuery(query, onChange),
         [query]
     );
 

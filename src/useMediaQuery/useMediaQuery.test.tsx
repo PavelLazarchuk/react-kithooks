@@ -3,62 +3,8 @@ import { act, renderHook } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 
 import { useMediaQuery } from './index';
+import { installMatchMedia } from './matchMedia.mock';
 import { resetMediaQueryListsForTests } from './store';
-
-type ChangeListener = () => void;
-
-function installMatchMedia(opts: { legacy?: boolean } = {}) {
-    const lists = new Map<
-        string,
-        { matches: boolean; listeners: Set<ChangeListener>; setMatches: (m: boolean) => void }
-    >();
-
-    const getList = (query: string) => {
-        let list = lists.get(query);
-        if (!list) {
-            const listeners = new Set<ChangeListener>();
-            list = {
-                matches: false,
-                listeners,
-                setMatches(m: boolean) {
-                    this.matches = m;
-                    listeners.forEach(l => l());
-                },
-            };
-            lists.set(query, list);
-        }
-        return list;
-    };
-
-    let calls = 0;
-
-    vi.stubGlobal('matchMedia', (query: string) => {
-        calls += 1;
-        const list = getList(query);
-        const mql: Record<string, unknown> = {
-            get matches() {
-                return list.matches;
-            },
-            media: query,
-        };
-
-        if (opts.legacy) {
-            mql.addListener = (l: ChangeListener) => list.listeners.add(l);
-            mql.removeListener = (l: ChangeListener) => list.listeners.delete(l);
-        } else {
-            mql.addEventListener = (_: 'change', l: ChangeListener) => list.listeners.add(l);
-            mql.removeEventListener = (_: 'change', l: ChangeListener) => list.listeners.delete(l);
-        }
-
-        return mql as unknown as MediaQueryList;
-    });
-
-    return {
-        setMatches: (query: string, m: boolean) => getList(query).setMatches(m),
-        matchMediaCalls: () => calls,
-        listenerCount: (query: string) => getList(query).listeners.size,
-    };
-}
 
 const QUERY = '(min-width: 768px)';
 
