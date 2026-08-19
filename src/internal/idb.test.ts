@@ -39,4 +39,16 @@ describe('openAtVersion', () => {
 
         await expect(idbSet(DB_NAME, 'another', 'k', 2)).resolves.toBeUndefined();
     });
+
+    it('does not keep a closed connection cached after an upgrade fails', async () => {
+        await expect(idbSet(DB_NAME, 'store-a', 'k', 1)).resolves.toBeUndefined();
+
+        const blocker = await openBlockingConnection(1, 'store-a');
+
+        await expect(idbSet(DB_NAME, 'store-b', 'k', 1)).rejects.toThrow(/blocked/);
+
+        blocker.close();
+        await settleOpenRequests();
+        await expect(idbSet(DB_NAME, 'store-a', 'k', 2)).resolves.toBeUndefined();
+    });
 });

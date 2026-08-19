@@ -61,11 +61,11 @@ function useTabLeader(key: string, options?: UseTabLeaderOptions): UseTabLeaderR
 
 ### Returns
 
-| Field       | Type                                  | Description                                                                                             |
-| ----------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `isLeader`  | `boolean`                             | Whether this tab currently holds leadership.                                                            |
-| `status`    | `'pending' \| 'leader' \| 'follower'` | `'pending'` until the election settles, then whichever role this tab was granted.                       |
-| `mechanism` | `'locks' \| 'storage' \| null`        | Which implementation is active — `null` until `status` leaves `'pending'`. Mainly useful for debugging. |
+| Field       | Type                                  | Description                                                                                                                                                               |
+| ----------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `isLeader`  | `boolean`                             | Whether this tab currently holds leadership.                                                                                                                              |
+| `status`    | `'pending' \| 'leader' \| 'follower'` | `'pending'` until the election settles, then whichever role this tab was granted. A `'follower'` stays queued and is promoted to `'leader'` if the current one goes away. |
+| `mechanism` | `'locks' \| 'storage' \| null`        | Which implementation is active — `null` until `status` leaves `'pending'`. Mainly useful for debugging.                                                                   |
 
 ## Notes
 

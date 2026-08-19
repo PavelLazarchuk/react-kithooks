@@ -136,9 +136,13 @@ function satisfiesSchema(db: IDBDatabase, storeName: string, indexes: Normalized
     if (!db.objectStoreNames.contains(storeName)) return false;
     if (indexes.length === 0) return true;
 
-    const store = db.transaction(storeName, 'readonly').objectStore(storeName);
+    try {
+        const store = db.transaction(storeName, 'readonly').objectStore(storeName);
 
-    return indexes.every(index => store.indexNames.contains(index.name));
+        return indexes.every(index => store.indexNames.contains(index.name));
+    } catch {
+        return false;
+    }
 }
 
 function ensureStore(
@@ -154,9 +158,12 @@ function ensureStore(
             return state.db;
         }
 
-        state.db?.close();
+        const previous = state.db;
 
-        const nextVersion = state.db ? state.db.version + 1 : undefined;
+        state.db = null;
+        previous?.close();
+
+        const nextVersion = previous ? previous.version + 1 : undefined;
         let db = await openAtVersion(dbName, nextVersion, storeName, wanted);
 
         if (!satisfiesSchema(db, storeName, wanted)) {

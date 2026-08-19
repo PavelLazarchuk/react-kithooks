@@ -160,10 +160,14 @@ export function useIndexedDBCollection<T = unknown>(
 
     useEffect(() => {
         let active = true;
+        let latest = 0;
 
         const load = async () => {
+            const ticket = ++latest;
+            const isCurrent = () => active && ticket === latest;
+
             if (!idbSupported()) {
-                if (active) setState({ status: 'unsupported', records: EMPTY });
+                if (isCurrent()) setState({ status: 'unsupported', records: EMPTY });
 
                 return;
             }
@@ -171,9 +175,9 @@ export function useIndexedDBCollection<T = unknown>(
             try {
                 const records = await idbQuery<T>(storeRef.current, queryRef.current);
 
-                if (active) setState({ status: 'ready', records });
+                if (isCurrent()) setState({ status: 'ready', records });
             } catch (error) {
-                if (active) setState(prev => ({ status: 'error', records: prev.records }));
+                if (isCurrent()) setState(prev => ({ status: 'error', records: prev.records }));
 
                 onErrorRef.current?.(error);
             }

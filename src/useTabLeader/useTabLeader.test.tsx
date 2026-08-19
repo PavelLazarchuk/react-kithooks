@@ -75,7 +75,8 @@ describe('useTabLeader', () => {
             await Promise.resolve();
         });
         expect(tabB.result.current.isLeader).toBe(false);
-        expect(tabB.result.current.status).toBe('pending');
+        expect(tabB.result.current.status).toBe('follower');
+        expect(tabB.result.current.mechanism).toBe('locks');
 
         tabA.unmount();
         await vi.waitFor(() => expect(tabB.result.current.isLeader).toBe(true));
@@ -98,6 +99,33 @@ describe('useTabLeader', () => {
         tabA.unmount();
         await vi.waitFor(() => expect(onBecomeLeader).toHaveBeenCalledTimes(1));
         expect(onBecomeFollower).not.toHaveBeenCalled();
+    });
+
+    it('settles a queued tab on "follower" rather than leaving it "pending" forever', async () => {
+        const tabA = renderHook(() => useTabLeader('room'));
+        await vi.waitFor(() => expect(tabA.result.current.isLeader).toBe(true));
+
+        resetTabLeaderStoresForTests();
+
+        const tabB = renderHook(() => useTabLeader('room'));
+
+        await vi.waitFor(() => expect(tabB.result.current.status).toBe('follower'));
+        expect(tabB.result.current.isLeader).toBe(false);
+        expect(tabB.result.current.mechanism).toBe('locks');
+    });
+
+    it('never reports the winning tab as a follower on its way to leadership', async () => {
+        const { result } = renderHook(() => useTabLeader('uncontended'));
+        const seen: string[] = [];
+
+        await vi.waitFor(() => expect(result.current.isLeader).toBe(true));
+
+        await act(async () => {
+            await new Promise(resolve => setTimeout(resolve, 0));
+        });
+
+        seen.push(result.current.status);
+        expect(seen).toEqual(['leader']);
     });
 
     it('releases leadership once every instance for the key unmounts', async () => {

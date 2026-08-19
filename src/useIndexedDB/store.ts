@@ -27,8 +27,11 @@ function createStore<T>(
     let entry: IndexedDBEntry<T> = { status: 'loading', value: undefined };
     let unsubscribeFromChanges: (() => void) | null = null;
     let inFlight = 0;
+    let seq = 0;
 
     const load = async () => {
+        const ticket = ++seq;
+
         if (!idbSupported()) {
             entry = { status: 'unsupported', value: undefined };
             lazyStore.notify();
@@ -37,9 +40,14 @@ function createStore<T>(
 
         try {
             const value = await idbGet<T>(dbName, storeName, key);
+
+            if (ticket !== seq) return;
+
             entry = { status: 'ready', value };
             lazyStore.notify();
         } catch {
+            if (ticket !== seq) return;
+
             entry = { status: 'error', value: undefined };
             lazyStore.notify();
         }
@@ -61,14 +69,23 @@ function createStore<T>(
     const write = async (op: () => Promise<void>, next: T | undefined) => {
         inFlight += 1;
 
+        const ticket = ++seq;
+
         try {
             await op();
-            entry = { status: 'ready', value: next };
-            lazyStore.notify();
+
+            if (ticket === seq) {
+                entry = { status: 'ready', value: next };
+                lazyStore.notify();
+            }
+
             publishStoreChange(dbName, storeName, key, onStoreChange);
         } catch (err) {
-            entry = { status: 'error', value: entry.value };
-            lazyStore.notify();
+            if (ticket === seq) {
+                entry = { status: 'error', value: entry.value };
+                lazyStore.notify();
+            }
+
             throw err;
         } finally {
             inFlight -= 1;

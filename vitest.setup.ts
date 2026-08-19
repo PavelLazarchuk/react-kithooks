@@ -62,6 +62,8 @@ interface QueueEntry {
     start: () => void;
     signal?: AbortSignal;
     onAbort?: () => void;
+    ifAvailable?: boolean;
+    startUnavailable?: () => void;
 }
 
 class PolyfillLockManager {
@@ -70,12 +72,15 @@ class PolyfillLockManager {
 
     request(name: string, ...args: unknown[]): Promise<unknown> {
         const hasOptions = typeof args[0] !== 'function';
-        const options = (hasOptions ? args[0] : {}) as { signal?: AbortSignal };
-        const callback = (hasOptions ? args[1] : args[0]) as (lock: {
-            name: string;
-            mode: string;
-        }) => unknown;
+        const options = (hasOptions ? args[0] : {}) as {
+            signal?: AbortSignal;
+            ifAvailable?: boolean;
+        };
+        const callback = (hasOptions ? args[1] : args[0]) as (
+            lock: { name: string; mode: string } | null
+        ) => unknown;
         const signal = options.signal;
+        const ifAvailable = options.ifAvailable === true;
 
         return new Promise((resolve, reject) => {
             const abortError = () => {
@@ -91,11 +96,17 @@ class PolyfillLockManager {
 
             const entry: QueueEntry = {
                 signal,
+                ifAvailable,
                 start: () => {
                     queueMicrotask(() => {
                         Promise.resolve(callback({ name, mode: 'exclusive' }))
                             .then(resolve, reject)
                             .finally(() => this.release(name));
+                    });
+                },
+                startUnavailable: () => {
+                    queueMicrotask(() => {
+                        Promise.resolve(callback(null)).then(resolve, reject);
                     });
                 },
             };
@@ -121,15 +132,27 @@ class PolyfillLockManager {
     }
 
     private pump(name: string): void {
-        if (this.held.has(name)) return;
-
         const queue = this.queues.get(name);
-        const entry = queue?.shift();
 
-        if (!entry) return;
+        if (!queue) return;
 
-        this.held.add(name);
-        entry.start();
+        while (queue.length > 0) {
+            const entry = queue[0]!;
+
+            if (this.held.has(name)) {
+                if (!entry.ifAvailable) return;
+
+                queue.shift();
+                entry.startUnavailable?.();
+                continue;
+            }
+
+            queue.shift();
+            this.held.add(name);
+            entry.start();
+
+            return;
+        }
     }
 
     private release(name: string): void {

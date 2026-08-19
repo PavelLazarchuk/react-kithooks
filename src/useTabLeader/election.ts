@@ -26,6 +26,17 @@ function startLocksElection(key: string, callbacks: ElectionCallbacks): Election
     const controller = new AbortController();
     let release: (() => void) | null = null;
     let stopped = false;
+    let granted = false;
+
+    navigator.locks
+        .request(lockName(key), { ifAvailable: true }, lock => {
+            if (lock !== null || stopped || granted) return;
+
+            callbacks.onStatusChange('follower');
+        })
+        .catch(() => {
+            // empty
+        });
 
     navigator.locks
         .request(lockName(key), { mode: 'exclusive', signal: controller.signal }, () => {
@@ -33,6 +44,7 @@ function startLocksElection(key: string, callbacks: ElectionCallbacks): Election
 
             return new Promise<void>(resolve => {
                 release = resolve;
+                granted = true;
                 callbacks.onStatusChange('leader');
             });
         })
