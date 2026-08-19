@@ -124,6 +124,12 @@
         "limit": "250 B"
     },
     {
+        "name": "useSingleFlight",
+        "path": "dist/index.js",
+        "import": "{ useSingleFlight }",
+        "limit": "300 B"
+    },
+    {
         "name": "useBreakpoint",
         "path": "dist/index.js",
         "import": "{ useBreakpoint }",

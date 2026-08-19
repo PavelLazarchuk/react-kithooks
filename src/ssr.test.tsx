@@ -28,6 +28,7 @@ import {
     usePreviousValue,
     useScrollAnchor,
     useSessionStorage,
+    useSingleFlight,
     useTabLeader,
     useThrottledCallback,
     useThrottledValue,
@@ -205,6 +206,21 @@ describe('SSR', () => {
             expect(result.status).toBe('idle');
             expect(result.isPaused).toBe(false);
             expect(result.isFetching).toBe(false);
+        });
+
+        it('useSingleFlight is not pending and never runs fn', () => {
+            let calls = 0;
+            const [run, controls] = ssr(() =>
+                useSingleFlight(() => {
+                    calls += 1;
+
+                    return never();
+                })
+            );
+
+            expect(calls).toBe(0);
+            expect(controls.pending).toBe(false);
+            expect(typeof run).toBe('function');
         });
 
         it('useAsyncQueue is an empty idle queue', () => {

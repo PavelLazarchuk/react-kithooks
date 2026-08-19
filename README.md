@@ -105,15 +105,16 @@ import { useScrollAnchor, useLocalStorage } from 'react-kithooks';
 
 ### Async
 
-| Hook                                                        | What it fixes                                                                                                                                                                                                               |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [useAbortableFetch](docs/useAbortableFetch/README.md)       | The stale-response race in `useEffect(() => { fetch(url).then(setData) }, [id])` — superseded responses are discarded even when abort is ignored. `isLoading` is the first load, `isFetching` is any request in flight.     |
-| [useAsyncQueue](docs/useAsyncQueue/README.md)               | Overlapping writes finishing out of order. A per-key mutex outside the React tree — or a bounded worker pool with priorities, pause/resume, per-key replacement, and `await idle()` to drain, when you raise `concurrency`. |
-| [usePolling](docs/usePolling/README.md)                     | `setInterval` + `fetch`: overlapping ticks, a hidden tab polling all day, and a failing endpoint hammered at full rate.                                                                                                     |
-| [useDebouncedValue](docs/useDebouncedValue/README.md)       | Debounce that also cancels when the value reverts within the window — type-and-undo produces no update — never starves, with `maxWaitMs`, and can hand back `isPending`/`flush`/`cancel`.                                   |
-| [useDebouncedCallback](docs/useDebouncedCallback/README.md) | Stable identity, always calls the latest `fn`, with `flush`/`cancel`/`isPending` and a `maxWaitMs` ceiling.                                                                                                                 |
-| [useThrottledValue](docs/useThrottledValue/README.md)       | The other half of debounce, for streams you must react to _while_ they happen. The last change always lands — a plain throttle drops it and comes to rest one window stale.                                                 |
-| [useThrottledCallback](docs/useThrottledCallback/README.md) | Same for a handler, with both edges configurable and `'frame'` as an interval — one call per paint instead of a ~16ms timer drifting across frames.                                                                         |
+| Hook                                                        | What it fixes                                                                                                                                                                                                                 |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [useAbortableFetch](docs/useAbortableFetch/README.md)       | The stale-response race in `useEffect(() => { fetch(url).then(setData) }, [id])` — superseded responses are discarded even when abort is ignored. `isLoading` is the first load, `isFetching` is any request in flight.       |
+| [useAsyncQueue](docs/useAsyncQueue/README.md)               | Overlapping writes finishing out of order. A per-key mutex outside the React tree — or a bounded worker pool with priorities, pause/resume, per-key replacement, and `await idle()` to drain, when you raise `concurrency`.   |
+| [useSingleFlight](docs/useSingleFlight/README.md)           | The double-clicked submit that sends the order twice. Runs an async function at most once at a time — later calls are dropped (or handed the in-flight promise with `mode: 'share'`), with `pending` as state for the button. |
+| [usePolling](docs/usePolling/README.md)                     | `setInterval` + `fetch`: overlapping ticks, a hidden tab polling all day, and a failing endpoint hammered at full rate.                                                                                                       |
+| [useDebouncedValue](docs/useDebouncedValue/README.md)       | Debounce that also cancels when the value reverts within the window — type-and-undo produces no update — never starves, with `maxWaitMs`, and can hand back `isPending`/`flush`/`cancel`.                                     |
+| [useDebouncedCallback](docs/useDebouncedCallback/README.md) | Stable identity, always calls the latest `fn`, with `flush`/`cancel`/`isPending` and a `maxWaitMs` ceiling.                                                                                                                   |
+| [useThrottledValue](docs/useThrottledValue/README.md)       | The other half of debounce, for streams you must react to _while_ they happen. The last change always lands — a plain throttle drops it and comes to rest one window stale.                                                   |
+| [useThrottledCallback](docs/useThrottledCallback/README.md) | Same for a handler, with both edges configurable and `'frame'` as an interval — one call per paint instead of a ~16ms timer drifting across frames.                                                                           |
 
 ### Render bookkeeping
 
@@ -144,6 +145,7 @@ All hooks touch `window`/`document`/`navigator` only inside effects or callback 
 | `useFormCrashRecovery`                  | `{ recovered: null, status: 'idle' }`                                    |
 | `useAbortableFetch`                     | `status: 'idle'`, `isFetching: false`                                    |
 | `useAsyncQueue`                         | `{ status: 'idle', pending: 0, running: 0, queued: 0, isPaused: false }` |
+| `useSingleFlight`                       | `pending: false`                                                         |
 | `usePolling`                            | `status: 'idle'`, `isPaused: false`                                      |
 | `useDebouncedValue`                     | the current value                                                        |
 | `useThrottledValue`                     | the current value                                                        |
@@ -158,33 +160,34 @@ Every build output carries the `'use client'` directive, so importing a hook fro
 
 Zero runtime dependencies, so what you import is all you ship. Every hook is measured in CI against a budget it must stay under — brotli, minified, React excluded:
 
-| Import                                    | Size     |
-| ----------------------------------------- | -------- |
-| `useIsFirstRender`                        | 26 B     |
-| `usePreviousValue`                        | 58 B     |
-| `useMediaQuery`                           | 229 B    |
-| `useDebouncedCallback`                    | 265 B    |
-| `usePrefersReducedMotion`                 | 265 B    |
-| `usePrefersColorScheme`                   | 285 B    |
-| `useDebouncedValue`                       | 383 B    |
-| `useThrottledValue`                       | 460 B    |
-| `useThrottledCallback`                    | 471 B    |
-| `useBreakpoint`                           | 646 B    |
-| `useOnlineStatus`                         | 648 B    |
-| `useAbortableFetch`                       | 669 B    |
-| `useLocalStorage` / `useSessionStorage`   | 871 B    |
-| `useScrollAnchor`                         | 1.13 kB  |
-| `useIdle`                                 | 1.14 kB  |
-| `useTabLeader`                            | 1.23 kB  |
-| `usePermission`                           | 1.26 kB  |
-| `useAsyncQueue`                           | 1.34 kB  |
-| `usePolling`                              | 1.37 kB  |
-| `useKeyboardScope`                        | 1.47 kB  |
-| `useIndexedDB`                            | 2.51 kB  |
-| `useIndexedDBCollection`                  | 2.89 kB  |
-| `useFormCrashRecovery`                    | 3.37 kB  |
-| `react-kithooks/useFormCrashRecovery/rhf` | 3.75 kB  |
-| the entire kit, every hook from the root  | 13.78 kB |
+| Import                                    | Size    |
+| ----------------------------------------- | ------- |
+| `useIsFirstRender`                        | 26 B    |
+| `usePreviousValue`                        | 58 B    |
+| `useSingleFlight`                         | 228 B   |
+| `useMediaQuery`                           | 229 B   |
+| `useDebouncedCallback`                    | 265 B   |
+| `usePrefersReducedMotion`                 | 265 B   |
+| `usePrefersColorScheme`                   | 285 B   |
+| `useDebouncedValue`                       | 383 B   |
+| `useThrottledValue`                       | 460 B   |
+| `useThrottledCallback`                    | 471 B   |
+| `useBreakpoint`                           | 646 B   |
+| `useOnlineStatus`                         | 648 B   |
+| `useAbortableFetch`                       | 669 B   |
+| `useLocalStorage` / `useSessionStorage`   | 871 B   |
+| `useScrollAnchor`                         | 1.13 kB |
+| `useIdle`                                 | 1.14 kB |
+| `useTabLeader`                            | 1.23 kB |
+| `usePermission`                           | 1.26 kB |
+| `useAsyncQueue`                           | 1.34 kB |
+| `usePolling`                              | 1.37 kB |
+| `useKeyboardScope`                        | 1.47 kB |
+| `useIndexedDB`                            | 2.51 kB |
+| `useIndexedDBCollection`                  | 2.89 kB |
+| `useFormCrashRecovery`                    | 3.37 kB |
+| `react-kithooks/useFormCrashRecovery/rhf` | 3.75 kB |
+| the entire kit, every hook from the root  | 14.5 kB |
 
 Run `npm run size` locally; budgets live in [.size-limit.json](.size-limit.json).
 

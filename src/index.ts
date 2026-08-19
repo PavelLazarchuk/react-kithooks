@@ -80,6 +80,13 @@ export type {
     UseAbortableFetchStatus,
 } from './useAbortableFetch';
 
+export { useSingleFlight } from './useSingleFlight';
+export type {
+    UseSingleFlightOptions,
+    SingleFlightControls,
+    SingleFlightMode,
+} from './useSingleFlight';
+
 export { usePolling } from './usePolling';
 export type { UsePollingOptions, UsePollingReturn, UsePollingStatus } from './usePolling';
 
