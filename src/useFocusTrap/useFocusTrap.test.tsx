@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 
 import { useFocusTrap } from './index';
 import type { UseFocusTrapOptions } from './index';
-import { resetFocusTrapManager } from './manager';
+import { FocusTrapManager, resetFocusTrapManager } from './manager';
 
 function Dialog(props: UseFocusTrapOptions & { label?: string }) {
     const { label = 'dialog', ...options } = props;
@@ -302,6 +302,37 @@ describe('useFocusTrap', () => {
             expect(document.activeElement).toBe(byText('outer-first'));
         });
 
+        it('re-orders a live trap when its priority changes, without moving focus', () => {
+            const { rerender } = render(<Dialog priority={0} />);
+
+            focus(byText('dialog-second'));
+            rerender(<Dialog priority={5} />);
+
+            expect(document.activeElement).toBe(byText('dialog-second'));
+        });
+
+        it('hands focus to the trap below when the top container leaves the document', () => {
+            const outside = document.createElement('button');
+            const outer = document.createElement('div');
+            const inside = document.createElement('button');
+            const inner = document.createElement('div');
+
+            outer.append(inside);
+            document.body.append(outside, outer, inner);
+
+            const manager = new FocusTrapManager();
+            const options = { priority: 0, getPreventScroll: () => false };
+
+            manager.register({ ...options, container: outer });
+            manager.register({ ...options, container: inner });
+
+            inner.remove();
+            act(() => outside.focus());
+
+            expect(document.activeElement).toBe(inside);
+            manager.destroy();
+        });
+
         it('respects priority over mount order', () => {
             const { getByTestId } = render(
                 <>
@@ -359,6 +390,24 @@ describe('useFocusTrap', () => {
             focus(before!);
 
             expect(document.activeElement).toBe(byText('natural'));
+        });
+
+        it('ignores a tabindex the browser cannot parse', () => {
+            const { getByTestId } = render(
+                <Dialog2>
+                    <div id="bare">not focusable</div>
+                    <button type="button">real</button>
+                </Dialog2>
+            );
+            const container = getByTestId('dialog');
+
+            container.querySelector('#bare')!.setAttribute('tabindex', '');
+            container.querySelector('button')!.setAttribute('tabindex', 'auto');
+
+            const [before] = guardsOf(container);
+            focus(before!);
+
+            expect(document.activeElement).toBe(byText('real'));
         });
 
         it('treats a radio group as a single stop', () => {

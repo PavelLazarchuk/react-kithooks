@@ -1,6 +1,6 @@
 export const GUARD_ATTR = 'data-focus-trap-guard';
 
-const CANDIDATE_SELECTOR = [
+const NATIVELY_TABBABLE = [
     'a[href]',
     'area[href]',
     'button',
@@ -9,13 +9,19 @@ const CANDIDATE_SELECTOR = [
     'textarea',
     'details > summary:first-of-type',
     'iframe',
-    'object',
-    'embed',
     'audio[controls]',
     'video[controls]',
+];
+
+const CANDIDATE_SELECTOR = [
+    ...NATIVELY_TABBABLE,
+    'object',
+    'embed',
     '[contenteditable]',
     '[tabindex]',
 ].join(',');
+
+const NATIVELY_TABBABLE_SELECTOR = NATIVELY_TABBABLE.join(',');
 
 function isEditable(el: HTMLElement): boolean {
     const value = el.getAttribute('contenteditable');
@@ -23,18 +29,24 @@ function isEditable(el: HTMLElement): boolean {
     return value !== null && value !== 'false';
 }
 
+function parseTabIndex(value: string): number | null {
+    const trimmed = value.trim();
+
+    if (!/^[+-]?\d+$/.test(trimmed)) return null;
+
+    const parsed = Number(trimmed);
+
+    return Number.isSafeInteger(parsed) ? parsed : null;
+}
+
 function tabIndexOf(el: HTMLElement): number {
     const attr = el.getAttribute('tabindex');
+    const explicit = attr === null ? null : parseTabIndex(attr);
 
-    if (attr !== null) {
-        const parsed = Number(attr);
-
-        return Number.isFinite(parsed) ? parsed : -1;
-    }
-
+    if (explicit !== null) return explicit;
     if (isEditable(el)) return 0;
 
-    return el.tabIndex;
+    return el.matches(NATIVELY_TABBABLE_SELECTOR) ? 0 : -1;
 }
 
 function isDisabled(el: HTMLElement): boolean {

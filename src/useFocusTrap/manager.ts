@@ -72,7 +72,30 @@ export class FocusTrapManager {
     }
 
     isTopMost(entry: object): boolean {
-        return this.ordered()[0] === entry;
+        return this.topMost() === entry;
+    }
+
+    setPriority(entry: object, priority: number): void {
+        const trap = entry as TrapEntry;
+
+        if (trap.priority === priority) return;
+
+        const previousTop = this.topMost();
+
+        trap.priority = priority;
+        this.orderedCache = null;
+        this.syncGuards();
+
+        const top = this.topMost();
+
+        if (top && top !== previousTop) {
+            const active = top.container.ownerDocument.activeElement;
+
+            if (!(active instanceof Element) || !top.container.contains(active))
+                this.focusInto(top);
+        }
+
+        this.notify();
     }
 
     focusInitial(entry: object, target: FocusTarget | false | undefined): void {
@@ -139,6 +162,10 @@ export class FocusTrapManager {
 
         focusElement(container, trap.getPreventScroll());
         trap.lastInside = null;
+    }
+
+    private topMost(): TrapEntry | null {
+        return this.ordered().find(entry => entry.container.isConnected) ?? null;
     }
 
     private ordered(): TrapEntry[] {
@@ -216,8 +243,10 @@ export class FocusTrapManager {
     }
 
     private syncGuards(): void {
+        const top = this.topMost();
+
         for (const entry of this.entries) {
-            const tabIndex = this.isTopMost(entry) ? 0 : -1;
+            const tabIndex = entry === top ? 0 : -1;
 
             for (const guard of entry.guards) guard.tabIndex = tabIndex;
         }
@@ -250,7 +279,7 @@ export class FocusTrapManager {
     }
 
     private handleFocusIn = (event: FocusEvent): void => {
-        const top = this.ordered()[0];
+        const top = this.topMost();
 
         if (!top) return;
 
@@ -270,14 +299,14 @@ export class FocusTrapManager {
     };
 
     private handleFocusOut = (event: FocusEvent): void => {
-        const top = this.ordered()[0];
+        const top = this.topMost();
 
         if (!top || event.relatedTarget !== null) return;
 
         const doc = top.container.ownerDocument;
 
         setTimeout(() => {
-            if (this.ordered()[0] !== top) return;
+            if (this.topMost() !== top) return;
 
             const active = doc.activeElement;
 

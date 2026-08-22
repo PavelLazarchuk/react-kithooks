@@ -85,7 +85,7 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
         const restoreTo = previouslyFocused instanceof HTMLElement ? previouslyFocused : null;
 
         const { entry, unregister } = manager.register({
-            priority,
+            priority: optionsRef.current.priority ?? 0,
             container,
             getPreventScroll: () => optionsRef.current.preventScroll ?? false,
         });
@@ -102,7 +102,13 @@ export function useFocusTrap<T extends HTMLElement = HTMLDivElement>(
 
             restoreFocus(resolveReturnTarget(returnFocus, doc, restoreTo), doc, preventScroll);
         };
-    }, [manager, active, container, priority]);
+    }, [manager, active, container]);
+
+    useEffect(() => {
+        const entry = entryRef.current;
+
+        if (entry) manager.setPriority(entry, priority);
+    }, [manager, priority]);
 
     const isActive = useSyncExternalStore(
         manager.subscribe,
