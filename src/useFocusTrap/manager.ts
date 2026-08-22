@@ -1,5 +1,5 @@
 import { createListenerSet } from '../internal/listenerSet';
-import { firstTabbable, GUARD_ATTR, isTabbable, lastTabbable } from './tabbable';
+import { edgeTabbable, GUARD_ATTR, isTabbable } from './tabbable';
 
 export type FocusTarget = HTMLElement | string | (() => HTMLElement | null) | null;
 
@@ -16,8 +16,7 @@ interface TrapEntry extends TrapConfig {
     borrowedTabIndex: boolean;
 }
 
-const GUARD_STYLE =
-    'position:fixed;top:0;left:0;width:1px;height:0;padding:0;margin:0;border:0;overflow:hidden;clip:rect(0 0 0 0);';
+const GUARD_STYLE = 'position:fixed;width:1px;height:0;overflow:hidden;clip:rect(0 0 0 0);';
 
 export function focusElement(el: HTMLElement, preventScroll: boolean): void {
     el.focus({ preventScroll });
@@ -149,7 +148,7 @@ export class FocusTrapManager {
 
         if (marked && isTabbable(marked)) return marked;
 
-        return firstTabbable(container);
+        return edgeTabbable(container, false);
     }
 
     private focusContainer(trap: TrapEntry): void {
@@ -213,10 +212,10 @@ export class FocusTrapManager {
 
         const doc = container.ownerDocument;
         const before = this.createGuard(doc, () => {
-            if (this.isTopMost(entry)) this.focusEdge(entry, 'last');
+            if (this.isTopMost(entry)) this.focusEdge(entry, true);
         });
         const after = this.createGuard(doc, () => {
-            if (this.isTopMost(entry)) this.focusEdge(entry, 'first');
+            if (this.isTopMost(entry)) this.focusEdge(entry, false);
         });
 
         parent.insertBefore(before, container);
@@ -252,9 +251,8 @@ export class FocusTrapManager {
         }
     }
 
-    private focusEdge(entry: TrapEntry, edge: 'first' | 'last'): void {
-        const target =
-            edge === 'first' ? firstTabbable(entry.container) : lastTabbable(entry.container);
+    private focusEdge(entry: TrapEntry, last: boolean): void {
+        const target = edgeTabbable(entry.container, last);
 
         if (target) {
             focusElement(target, entry.getPreventScroll());
@@ -275,7 +273,7 @@ export class FocusTrapManager {
             return;
         }
 
-        this.focusEdge(entry, 'first');
+        this.focusEdge(entry, false);
     }
 
     private handleFocusIn = (event: FocusEvent): void => {

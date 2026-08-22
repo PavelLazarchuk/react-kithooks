@@ -140,12 +140,8 @@ export function getTabbables(container: HTMLElement): HTMLElement[] {
     return [...positive.map(entry => entry.el), ...natural];
 }
 
-export function firstTabbable(container: HTMLElement): HTMLElement | null {
-    return getTabbables(container)[0] ?? null;
-}
-
-export function lastTabbable(container: HTMLElement): HTMLElement | null {
+export function edgeTabbable(container: HTMLElement, last: boolean): HTMLElement | null {
     const tabbables = getTabbables(container);
 
-    return tabbables[tabbables.length - 1] ?? null;
+    return (last ? tabbables[tabbables.length - 1] : tabbables[0]) ?? null;
 }
