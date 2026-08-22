@@ -12,6 +12,7 @@ import {
     useBreakpoint,
     useDebouncedCallback,
     useDebouncedValue,
+    useFocusTrap,
     useFormCrashRecovery,
     useIdle,
     useIndexedDB,
@@ -86,6 +87,13 @@ describe('SSR', () => {
             );
 
             expect(html).toContain('child');
+        });
+
+        it('useFocusTrap is not active', () => {
+            const trap = ssr(() => useFocusTrap());
+
+            expect(trap.isActive).toBe(false);
+            expect(typeof trap.ref).toBe('function');
         });
 
         it('useMediaQuery returns serverFallback', () => {

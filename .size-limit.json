@@ -2,7 +2,7 @@
     {
         "name": "index (every hook)",
         "path": "dist/index.js",
-        "limit": "15 kB"
+        "limit": "17 kB"
     },
     {
         "name": "useScrollAnchor",
@@ -21,6 +21,12 @@
         "path": "dist/index.js",
         "import": "{ useKeyboardScope }",
         "limit": "1.7 kB"
+    },
+    {
+        "name": "useFocusTrap",
+        "path": "dist/index.js",
+        "import": "{ useFocusTrap }",
+        "limit": "2.3 kB"
     },
     {
         "name": "useFormCrashRecovery",

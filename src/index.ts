@@ -19,6 +19,9 @@ export type {
     KeyboardScopeProviderProps,
 } from './useKeyboardScope';
 
+export { useFocusTrap } from './useFocusTrap';
+export type { UseFocusTrapOptions, UseFocusTrapReturn, FocusTarget } from './useFocusTrap';
+
 export { useFormCrashRecovery } from './useFormCrashRecovery';
 export type {
     UseFormCrashRecoveryOptions,

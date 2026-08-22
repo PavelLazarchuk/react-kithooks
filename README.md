@@ -75,14 +75,15 @@ import { useScrollAnchor, useLocalStorage } from 'react-kithooks';
 
 ### UI & interaction
 
-| Hook                                                              | What it fixes                                                                                                                                                                    |
-| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [useScrollAnchor](docs/useScrollAnchor/README.md)                 | Viewport jump when prepending to a scrollable list, and stick-to-bottom that respects the reader. Element anchoring, so async content above doesn't break it.                    |
-| [useKeyboardScope](docs/useKeyboardScope/README.md)               | Layered shortcuts: the top-most scope suspends the ones below, and Escape only ever reaches one layer.                                                                           |
-| [useMediaQuery](docs/useMediaQuery/README.md)                     | `matchMedia` that neither throws on the server nor mismatches on hydration.                                                                                                      |
-| [useBreakpoint](docs/useBreakpoint/README.md)                     | The current breakpoint name, typed from your own scale. Re-renders when the viewport crosses one — not on every pixel of a `resize`, and never off-by-a-scrollbar from your CSS. |
-| [usePrefersColorScheme](docs/usePrefersColorScheme/README.md)     | The system light/dark preference, as the default for a theme rather than a hydration mismatch.                                                                                   |
-| [usePrefersReducedMotion](docs/usePrefersReducedMotion/README.md) | The accessibility setting CSS can honor but your spring physics and confetti can't reach.                                                                                        |
+| Hook                                                              | What it fixes                                                                                                                                                                          |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [useScrollAnchor](docs/useScrollAnchor/README.md)                 | Viewport jump when prepending to a scrollable list, and stick-to-bottom that respects the reader. Element anchoring, so async content above doesn't break it.                          |
+| [useKeyboardScope](docs/useKeyboardScope/README.md)               | Layered shortcuts: the top-most scope suspends the ones below, and Escape only ever reaches one layer.                                                                                 |
+| [useFocusTrap](docs/useFocusTrap/README.md)                       | Tab walking out of an open dialog, and focus falling to `<body>` when it closes. Sentinel-based wrapping that survives content loading in, and a stack so layered dialogs don't fight. |
+| [useMediaQuery](docs/useMediaQuery/README.md)                     | `matchMedia` that neither throws on the server nor mismatches on hydration.                                                                                                            |
+| [useBreakpoint](docs/useBreakpoint/README.md)                     | The current breakpoint name, typed from your own scale. Re-renders when the viewport crosses one — not on every pixel of a `resize`, and never off-by-a-scrollbar from your CSS.       |
+| [usePrefersColorScheme](docs/usePrefersColorScheme/README.md)     | The system light/dark preference, as the default for a theme rather than a hydration mismatch.                                                                                         |
+| [usePrefersReducedMotion](docs/usePrefersReducedMotion/README.md) | The accessibility setting CSS can honor but your spring physics and confetti can't reach.                                                                                              |
 
 ### Browser capabilities
 
@@ -131,6 +132,7 @@ All hooks touch `window`/`document`/`navigator` only inside effects or callback 
 | --------------------------------------- | ------------------------------------------------------------------------ |
 | `useScrollAnchor`                       | `isAtBottom: true`                                                       |
 | `useKeyboardScope`                      | `isTopMost: false`                                                       |
+| `useFocusTrap`                          | `isActive: false`                                                        |
 | `useMediaQuery`                         | `serverFallback` (default `false`)                                       |
 | `useBreakpoint`                         | `serverFallback` (default: the `base` name)                              |
 | `usePrefersColorScheme`                 | `serverFallback` (default `'light'`)                                     |
@@ -183,11 +185,12 @@ Zero runtime dependencies, so what you import is all you ship. Every hook is mea
 | `useAsyncQueue`                           | 1.34 kB |
 | `usePolling`                              | 1.37 kB |
 | `useKeyboardScope`                        | 1.47 kB |
+| `useFocusTrap`                            | 2.17 kB |
 | `useIndexedDB`                            | 2.51 kB |
 | `useIndexedDBCollection`                  | 2.89 kB |
 | `useFormCrashRecovery`                    | 3.37 kB |
 | `react-kithooks/useFormCrashRecovery/rhf` | 3.75 kB |
-| the entire kit, every hook from the root  | 14.5 kB |
+| the entire kit, every hook from the root  | 16.4 kB |
 
 Run `npm run size` locally; budgets live in [.size-limit.json](.size-limit.json).
 
