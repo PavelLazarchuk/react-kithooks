@@ -1,7 +1,7 @@
 {
     "name": "react-kithooks",
-    "version": "1.9.1",
-    "description": "react-kithooks: a TypeScript-first kit of production-grade React hooks \u2014 scroll anchoring, keyboard shortcuts, permissions, crash-safe form drafts, multi-tab storage sync, real online status, and race-free async (fetch, queue, polling, debounce, throttle). Zero dependencies, SSR-safe.",
+    "version": "1.10.0",
+    "description": "react-kithooks: a TypeScript-first kit of production-grade React hooks — scroll anchoring, keyboard shortcuts, permissions, crash-safe form drafts, multi-tab storage sync, real online status, and race-free async (fetch, queue, polling, debounce, throttle). Zero dependencies, SSR-safe.",
     "license": "MIT",
     "sideEffects": false,
     "type": "module",
