@@ -1,168 +1,413 @@
 [
     {
-        "name": "index (every hook)",
+        "name": "react-kithooks",
         "path": "dist/index.js",
-        "limit": "17 kB"
+        "ignore": ["react", "react-dom"],
+        "limit": "20.05 kB",
+        "gzip": true
     },
     {
-        "name": "useScrollAnchor",
-        "path": "dist/index.js",
-        "import": "{ useScrollAnchor }",
-        "limit": "1.3 kB"
+        "name": "react-kithooks (cjs)",
+        "path": "dist/index.cjs",
+        "ignore": ["react", "react-dom"],
+        "limit": "19.75 kB",
+        "gzip": true
     },
     {
-        "name": "usePermission",
-        "path": "dist/index.js",
-        "import": "{ usePermission }",
-        "limit": "1.45 kB"
+        "name": "react-kithooks/useAbortableFetch",
+        "path": "dist/useAbortableFetch/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.05 kB",
+        "gzip": true
     },
     {
-        "name": "useKeyboardScope",
-        "path": "dist/index.js",
-        "import": "{ useKeyboardScope }",
-        "limit": "1.7 kB"
+        "name": "react-kithooks/useAsyncQueue",
+        "path": "dist/useAsyncQueue/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.9 kB",
+        "gzip": true
     },
     {
-        "name": "useFocusTrap",
-        "path": "dist/index.js",
-        "import": "{ useFocusTrap }",
-        "limit": "2.3 kB"
+        "name": "react-kithooks/useBreakpoint",
+        "path": "dist/useBreakpoint/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "1000 B",
+        "gzip": true
     },
     {
-        "name": "useFormCrashRecovery",
-        "path": "dist/index.js",
-        "import": "{ useFormCrashRecovery }",
-        "limit": "3.7 kB"
+        "name": "react-kithooks/useDebouncedCallback",
+        "path": "dist/useDebouncedCallback/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "525 B",
+        "gzip": true
     },
     {
-        "name": "useFormCrashRecovery/rhf",
+        "name": "react-kithooks/useDebouncedValue",
+        "path": "dist/useDebouncedValue/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "650 B",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/useFocusTrap",
+        "path": "dist/useFocusTrap/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "3.05 kB",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/useFormCrashRecovery",
+        "path": "dist/useFormCrashRecovery/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "4.25 kB",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/useIdle",
+        "path": "dist/useIdle/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.55 kB",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/useIndexedDB",
+        "path": "dist/useIndexedDB/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "3.25 kB",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/useIndexedDBCollection",
+        "path": "dist/useIndexedDBCollection/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "3.7 kB",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/useIsFirstRender",
+        "path": "dist/useIsFirstRender/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "250 B",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/useKeyboardScope",
+        "path": "dist/useKeyboardScope/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "2.1 kB",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/useLocalStorage",
+        "path": "dist/useLocalStorage/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.25 kB",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/useMediaQuery",
+        "path": "dist/useMediaQuery/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "500 B",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/useOnlineStatus",
+        "path": "dist/useOnlineStatus/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.05 kB",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/usePermission",
+        "path": "dist/usePermission/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.75 kB",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/usePolling",
+        "path": "dist/usePolling/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.9 kB",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/usePrefersColorScheme",
+        "path": "dist/usePrefersColorScheme/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "575 B",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/usePrefersReducedMotion",
+        "path": "dist/usePrefersReducedMotion/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "550 B",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/usePreviousValue",
+        "path": "dist/usePreviousValue/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "300 B",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/useScrollAnchor",
+        "path": "dist/useScrollAnchor/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.6 kB",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/useSessionStorage",
+        "path": "dist/useSessionStorage/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.25 kB",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/useSingleFlight",
+        "path": "dist/useSingleFlight/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "475 B",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/useTabLeader",
+        "path": "dist/useTabLeader/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.7 kB",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/useThrottledCallback",
+        "path": "dist/useThrottledCallback/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "775 B",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/useThrottledValue",
+        "path": "dist/useThrottledValue/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "750 B",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/useFormCrashRecovery/rhf",
         "path": "dist/useFormCrashRecovery/rhf.js",
-        "limit": "4.1 kB"
+        "ignore": ["react", "react-dom", "react-hook-form"],
+        "limit": "4.5 kB",
+        "gzip": true
     },
     {
-        "name": "useLocalStorage",
-        "path": "dist/index.js",
-        "import": "{ useLocalStorage }",
-        "limit": "1 kB"
-    },
-    {
-        "name": "useSessionStorage",
-        "path": "dist/index.js",
-        "import": "{ useSessionStorage }",
-        "limit": "1 kB"
-    },
-    {
-        "name": "useIndexedDB",
-        "path": "dist/index.js",
-        "import": "{ useIndexedDB }",
-        "limit": "2.8 kB"
-    },
-    {
-        "name": "useIndexedDBCollection",
-        "path": "dist/index.js",
-        "import": "{ useIndexedDBCollection }",
-        "limit": "3.2 kB"
-    },
-    {
-        "name": "useAsyncQueue",
-        "path": "dist/index.js",
-        "import": "{ useAsyncQueue }",
-        "limit": "1.45 kB"
-    },
-    {
-        "name": "useOnlineStatus",
-        "path": "dist/index.js",
-        "import": "{ useOnlineStatus }",
-        "limit": "800 B"
-    },
-    {
-        "name": "useIdle",
-        "path": "dist/index.js",
-        "import": "{ useIdle }",
-        "limit": "1.3 kB"
-    },
-    {
-        "name": "useTabLeader",
-        "path": "dist/index.js",
-        "import": "{ useTabLeader }",
-        "limit": "1.45 kB"
-    },
-    {
-        "name": "useAbortableFetch",
+        "name": "tree-shaking: { useAbortableFetch } only",
         "path": "dist/index.js",
         "import": "{ useAbortableFetch }",
-        "limit": "750 B"
+        "ignore": ["react", "react-dom"],
+        "limit": "875 B",
+        "gzip": true
     },
     {
-        "name": "usePolling",
+        "name": "tree-shaking: { useAsyncQueue } only",
         "path": "dist/index.js",
-        "import": "{ usePolling }",
-        "limit": "1.6 kB"
+        "import": "{ useAsyncQueue }",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.6 kB",
+        "gzip": true
     },
     {
-        "name": "useDebouncedValue",
-        "path": "dist/index.js",
-        "import": "{ useDebouncedValue }",
-        "limit": "500 B"
-    },
-    {
-        "name": "useDebouncedCallback",
-        "path": "dist/index.js",
-        "import": "{ useDebouncedCallback }",
-        "limit": "350 B"
-    },
-    {
-        "name": "useThrottledValue",
-        "path": "dist/index.js",
-        "import": "{ useThrottledValue }",
-        "limit": "550 B"
-    },
-    {
-        "name": "useThrottledCallback",
-        "path": "dist/index.js",
-        "import": "{ useThrottledCallback }",
-        "limit": "550 B"
-    },
-    {
-        "name": "useMediaQuery",
-        "path": "dist/index.js",
-        "import": "{ useMediaQuery }",
-        "limit": "250 B"
-    },
-    {
-        "name": "useSingleFlight",
-        "path": "dist/index.js",
-        "import": "{ useSingleFlight }",
-        "limit": "300 B"
-    },
-    {
-        "name": "useBreakpoint",
+        "name": "tree-shaking: { useBreakpoint } only",
         "path": "dist/index.js",
         "import": "{ useBreakpoint }",
-        "limit": "700 B"
+        "ignore": ["react", "react-dom"],
+        "limit": "825 B",
+        "gzip": true
     },
     {
-        "name": "usePrefersColorScheme",
+        "name": "tree-shaking: { useDebouncedCallback } only",
         "path": "dist/index.js",
-        "import": "{ usePrefersColorScheme }",
-        "limit": "300 B"
+        "import": "{ useDebouncedCallback }",
+        "ignore": ["react", "react-dom"],
+        "limit": "350 B",
+        "gzip": true
     },
     {
-        "name": "usePrefersReducedMotion",
+        "name": "tree-shaking: { useDebouncedValue } only",
         "path": "dist/index.js",
-        "import": "{ usePrefersReducedMotion }",
-        "limit": "300 B"
+        "import": "{ useDebouncedValue }",
+        "ignore": ["react", "react-dom"],
+        "limit": "475 B",
+        "gzip": true
     },
     {
-        "name": "useIsFirstRender",
+        "name": "tree-shaking: { useFocusTrap } only",
+        "path": "dist/index.js",
+        "import": "{ useFocusTrap }",
+        "ignore": ["react", "react-dom"],
+        "limit": "2.85 kB",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { useFormCrashRecovery } only",
+        "path": "dist/index.js",
+        "import": "{ useFormCrashRecovery }",
+        "ignore": ["react", "react-dom"],
+        "limit": "4.1 kB",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { useIdle } only",
+        "path": "dist/index.js",
+        "import": "{ useIdle }",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.4 kB",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { useIndexedDB } only",
+        "path": "dist/index.js",
+        "import": "{ useIndexedDB }",
+        "ignore": ["react", "react-dom"],
+        "limit": "3.1 kB",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { useIndexedDBCollection } only",
+        "path": "dist/index.js",
+        "import": "{ useIndexedDBCollection }",
+        "ignore": ["react", "react-dom"],
+        "limit": "3.5 kB",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { useIsFirstRender } only",
         "path": "dist/index.js",
         "import": "{ useIsFirstRender }",
-        "limit": "100 B"
+        "ignore": ["react", "react-dom"],
+        "limit": "100 B",
+        "gzip": true
     },
     {
-        "name": "usePreviousValue",
+        "name": "tree-shaking: { useKeyboardScope } only",
+        "path": "dist/index.js",
+        "import": "{ useKeyboardScope }",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.85 kB",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { useLocalStorage } only",
+        "path": "dist/index.js",
+        "import": "{ useLocalStorage }",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.1 kB",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { useMediaQuery } only",
+        "path": "dist/index.js",
+        "import": "{ useMediaQuery }",
+        "ignore": ["react", "react-dom"],
+        "limit": "325 B",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { useOnlineStatus } only",
+        "path": "dist/index.js",
+        "import": "{ useOnlineStatus }",
+        "ignore": ["react", "react-dom"],
+        "limit": "850 B",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { usePermission } only",
+        "path": "dist/index.js",
+        "import": "{ usePermission }",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.6 kB",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { usePolling } only",
+        "path": "dist/index.js",
+        "import": "{ usePolling }",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.7 kB",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { usePrefersColorScheme } only",
+        "path": "dist/index.js",
+        "import": "{ usePrefersColorScheme }",
+        "ignore": ["react", "react-dom"],
+        "limit": "400 B",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { usePrefersReducedMotion } only",
+        "path": "dist/index.js",
+        "import": "{ usePrefersReducedMotion }",
+        "ignore": ["react", "react-dom"],
+        "limit": "375 B",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { usePreviousValue } only",
         "path": "dist/index.js",
         "import": "{ usePreviousValue }",
-        "limit": "100 B"
+        "ignore": ["react", "react-dom"],
+        "limit": "125 B",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { useScrollAnchor } only",
+        "path": "dist/index.js",
+        "import": "{ useScrollAnchor }",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.4 kB",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { useSessionStorage } only",
+        "path": "dist/index.js",
+        "import": "{ useSessionStorage }",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.1 kB",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { useSingleFlight } only",
+        "path": "dist/index.js",
+        "import": "{ useSingleFlight }",
+        "ignore": ["react", "react-dom"],
+        "limit": "325 B",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { useTabLeader } only",
+        "path": "dist/index.js",
+        "import": "{ useTabLeader }",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.55 kB",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { useThrottledCallback } only",
+        "path": "dist/index.js",
+        "import": "{ useThrottledCallback }",
+        "ignore": ["react", "react-dom"],
+        "limit": "600 B",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { useThrottledValue } only",
+        "path": "dist/index.js",
+        "import": "{ useThrottledValue }",
+        "ignore": ["react", "react-dom"],
+        "limit": "575 B",
+        "gzip": true
     }
 ]

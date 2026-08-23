@@ -160,37 +160,39 @@ Every build output carries the `'use client'` directive, so importing a hook fro
 
 ## Bundle size
 
-Zero runtime dependencies, so what you import is all you ship. Every hook is measured in CI against a budget it must stay under — brotli, minified, React excluded:
+Zero runtime dependencies, so what you import is all you ship. Every hook is measured in CI against a budget it must stay under — gzip, minified, React excluded:
 
 | Import                                    | Size    |
 | ----------------------------------------- | ------- |
-| `useIsFirstRender`                        | 26 B    |
-| `usePreviousValue`                        | 58 B    |
-| `useSingleFlight`                         | 228 B   |
-| `useMediaQuery`                           | 229 B   |
-| `useDebouncedCallback`                    | 265 B   |
-| `usePrefersReducedMotion`                 | 265 B   |
-| `usePrefersColorScheme`                   | 285 B   |
-| `useDebouncedValue`                       | 383 B   |
-| `useThrottledValue`                       | 460 B   |
-| `useThrottledCallback`                    | 471 B   |
-| `useBreakpoint`                           | 646 B   |
-| `useOnlineStatus`                         | 648 B   |
-| `useAbortableFetch`                       | 669 B   |
-| `useLocalStorage` / `useSessionStorage`   | 871 B   |
-| `useScrollAnchor`                         | 1.13 kB |
-| `useIdle`                                 | 1.14 kB |
-| `useTabLeader`                            | 1.23 kB |
-| `usePermission`                           | 1.26 kB |
-| `useAsyncQueue`                           | 1.34 kB |
-| `usePolling`                              | 1.37 kB |
-| `useKeyboardScope`                        | 1.47 kB |
-| `useFocusTrap`                            | 2.17 kB |
-| `useIndexedDB`                            | 2.51 kB |
-| `useIndexedDBCollection`                  | 2.89 kB |
-| `useFormCrashRecovery`                    | 3.37 kB |
-| `react-kithooks/useFormCrashRecovery/rhf` | 3.75 kB |
-| the entire kit, every hook from the root  | 16.4 kB |
+| `useIsFirstRender`                        | 75 B    |
+| `usePreviousValue`                        | 104 B   |
+| `useSingleFlight`                         | 279 B   |
+| `useMediaQuery`                           | 299 B   |
+| `useDebouncedCallback`                    | 321 B   |
+| `usePrefersReducedMotion`                 | 332 B   |
+| `usePrefersColorScheme`                   | 356 B   |
+| `useDebouncedValue`                       | 436 B   |
+| `useThrottledValue`                       | 530 B   |
+| `useThrottledCallback`                    | 546 B   |
+| `useBreakpoint`                           | 759 B   |
+| `useOnlineStatus`                         | 779 B   |
+| `useAbortableFetch`                       | 790 B   |
+| `useLocalStorage` / `useSessionStorage`   | 986 B   |
+| `useIdle`                                 | 1.28 kB |
+| `useScrollAnchor`                         | 1.29 kB |
+| `useTabLeader`                            | 1.41 kB |
+| `usePermission`                           | 1.45 kB |
+| `useAsyncQueue`                           | 1.48 kB |
+| `usePolling`                              | 1.57 kB |
+| `useKeyboardScope`                        | 1.7 kB  |
+| `useFocusTrap`                            | 2.63 kB |
+| `useIndexedDB`                            | 2.84 kB |
+| `useIndexedDBCollection`                  | 3.24 kB |
+| `useFormCrashRecovery`                    | 3.77 kB |
+| `react-kithooks/useFormCrashRecovery/rhf` | 4.15 kB |
+| the entire kit, every hook from the root  | 18.5 kB |
+
+Each hook also has its own subpath (`react-kithooks/useIdle`); importing it directly costs 100–200 B more than the tree-shaken root import, because the subpath file carries its own module wrapper. Both are measured in CI.
 
 Run `npm run size` locally; budgets live in [.size-limit.json](.size-limit.json).
 
