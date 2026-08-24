@@ -221,8 +221,19 @@ export function usePolling<T>(
     }, [stop, ...deps]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
-        if (active) resume();
-        else setState(prev => (prev.isFetching ? { ...prev, isFetching: false } : prev));
+        if (active) {
+            resume();
+        } else {
+            if (state.isFetching) lastRunAtRef.current = 0;
+
+            setState(prev => {
+                const status = prev.status === 'loading' ? 'idle' : prev.status;
+
+                if (status === prev.status && !prev.isFetching) return prev;
+
+                return { ...prev, status, isFetching: false };
+            });
+        }
 
         return stop;
     }, [active, resume, stop, ...deps]); // eslint-disable-line react-hooks/exhaustive-deps

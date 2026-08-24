@@ -116,6 +116,35 @@ describe('usePolling', () => {
         expect(poller).toHaveBeenCalledTimes(2);
     });
 
+    it('drops the loading state when the tab hides during the very first request', async () => {
+        const gates: ReturnType<typeof deferred<string>>[] = [];
+        const poller = vi.fn(() => {
+            const gate = deferred<string>();
+            gates.push(gate);
+            return gate.promise;
+        });
+        const { result } = renderHook(() => usePolling(poller, [], { intervalMs: 10_000 }));
+
+        await tick();
+        expect(result.current.isLoading).toBe(true);
+
+        await setVisibility(true);
+        expect(result.current.isPaused).toBe(true);
+        expect(result.current.isLoading).toBe(false);
+        expect(result.current.isFetching).toBe(false);
+        expect(result.current.status).toBe('idle');
+
+        await setVisibility(false);
+        expect(poller).toHaveBeenCalledTimes(2);
+        expect(result.current.isLoading).toBe(true);
+
+        await act(async () => {
+            gates[1]?.resolve('value');
+        });
+        expect(result.current.status).toBe('success');
+        expect(result.current.data).toBe('value');
+    });
+
     it('does not re-poll on a tab switch shorter than the interval', async () => {
         const poller = vi.fn(async () => 'value');
         renderHook(() => usePolling(poller, [], { intervalMs: 10_000 }));
