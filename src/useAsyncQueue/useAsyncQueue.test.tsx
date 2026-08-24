@@ -581,17 +581,20 @@ describe('useAsyncQueue', () => {
             await flush();
         });
 
-        it('warns once when concurrency reconfigures a queue shared by other consumers', async () => {
+        it('warns once per hook instance when concurrency reconfigures a shared queue', async () => {
             const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-            const { unmount } = renderHook(() => useAsyncQueue('warn:keyed', { concurrency: 3 }));
+            const { rerender } = renderHook(
+                ({ concurrency }: { concurrency: number }) =>
+                    useAsyncQueue('warn:keyed', { concurrency }),
+                { initialProps: { concurrency: 3 } }
+            );
             await flush();
 
             expect(warn).toHaveBeenCalledTimes(1);
-            expect(warn.mock.calls[0]?.[0]).toContain('warn:keyed');
+            expect(warn.mock.calls[0]?.[0]).toContain('concurrency');
 
-            unmount();
-            renderHook(() => useAsyncQueue('warn:keyed', { concurrency: 3 }));
+            rerender({ concurrency: 4 });
             await flush();
 
             expect(warn).toHaveBeenCalledTimes(1);
@@ -614,7 +617,6 @@ describe('useAsyncQueue', () => {
             await flush();
 
             expect(warn).toHaveBeenCalledTimes(1);
-            expect(warn.mock.calls[0]?.[0]).toContain('AsyncQueueProvider');
 
             warn.mockRestore();
         });

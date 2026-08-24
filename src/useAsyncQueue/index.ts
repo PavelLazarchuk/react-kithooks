@@ -49,8 +49,6 @@ export interface AsyncQueueProviderProps {
 
 const AsyncQueueContext = createContext<AsyncQueue | null>(null);
 
-const warnedSharedQueues = new WeakSet<AsyncQueue>();
-
 export function AsyncQueueProvider(props: AsyncQueueProviderProps) {
     const queue = useMemo(() => createAsyncQueue({ concurrency: props.concurrency }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -72,7 +70,7 @@ export function AsyncQueueProvider(props: AsyncQueueProviderProps) {
  * admitting them in enqueue order. It belongs to the queue, not to the call
  * site: on a shared queue (a key, or the provider's) it reconfigures the queue
  * for every other consumer and is not reverted on unmount, which is why doing
- * so warns once per queue in development.
+ * so warns once per call site in development.
  *
  * Which queue you get:
  *
@@ -122,30 +120,19 @@ export function useAsyncQueue(
 
     const queue = key !== undefined ? getAsyncQueue(key) : (contextQueue ?? getPrivateQueue());
 
+    const warnedRef = useRef(false);
     const onErrorRef = useRef(options.onError);
     onErrorRef.current = options.onError;
 
     useEffect(() => {
         if (concurrency === undefined) return;
 
-        if (isDev && !warnedSharedQueues.has(queue)) {
-            const owner =
-                key !== undefined
-                    ? `the queue shared under the key "${key}"`
-                    : contextQueue !== null
-                      ? 'the AsyncQueueProvider queue shared by this subtree'
-                      : null;
-
-            if (owner !== null) {
-                warnedSharedQueues.add(queue);
-                console.warn(
-                    `[react-kithooks] useAsyncQueue: options.concurrency reconfigures ${owner}, ` +
-                        `so every other consumer of it runs at ${concurrency} too — and the change ` +
-                        `is not reverted when this component unmounts. Set the concurrency in a ` +
-                        `single owner (AsyncQueueProvider, or the first hook that claims the key), ` +
-                        `or drop the key to get a queue private to this hook.`
-                );
-            }
+        if (isDev && (key !== undefined || contextQueue) && !warnedRef.current) {
+            warnedRef.current = true;
+            console.warn(
+                '[react-kithooks] useAsyncQueue: `concurrency` reconfigures the shared queue for ' +
+                    'every other consumer of it, and is not restored on unmount. Set it in one owner.'
+            );
         }
 
         queue.setConcurrency(concurrency);
