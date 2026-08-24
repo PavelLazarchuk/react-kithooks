@@ -135,6 +135,66 @@ describe('useDebouncedCallback', () => {
         expect(fn).toHaveBeenCalledWith('x');
     });
 
+    describe('a delay that changes mid-wait', () => {
+        const renderWithDelay = (fn: (arg: string) => void, delay: number) =>
+            renderHook(({ delay: d }) => useDebouncedCallback(fn, d), {
+                initialProps: { delay },
+            });
+
+        it('re-arms a pending call against the shorter delay', () => {
+            const fn = vi.fn();
+            const { result, rerender } = renderWithDelay(fn, 300);
+
+            act(() => result.current('x'));
+            act(() => vi.advanceTimersByTime(100));
+
+            rerender({ delay: 150 });
+            act(() => vi.advanceTimersByTime(49));
+            expect(fn).not.toHaveBeenCalled();
+
+            act(() => vi.advanceTimersByTime(1));
+            expect(fn).toHaveBeenCalledWith('x');
+        });
+
+        it('fires at once when the shorter delay has already been served', () => {
+            const fn = vi.fn();
+            const { result, rerender } = renderWithDelay(fn, 300);
+
+            act(() => result.current('x'));
+            act(() => vi.advanceTimersByTime(200));
+
+            rerender({ delay: 100 });
+            act(() => vi.advanceTimersByTime(0));
+
+            expect(fn).toHaveBeenCalledWith('x');
+        });
+
+        it('holds a pending call for the longer delay, counted from the call', () => {
+            const fn = vi.fn();
+            const { result, rerender } = renderWithDelay(fn, 100);
+
+            act(() => result.current('x'));
+            act(() => vi.advanceTimersByTime(50));
+
+            rerender({ delay: 400 });
+            act(() => vi.advanceTimersByTime(300));
+            expect(fn).not.toHaveBeenCalled();
+
+            act(() => vi.advanceTimersByTime(50));
+            expect(fn).toHaveBeenCalledWith('x');
+        });
+
+        it('leaves an idle debounce alone', () => {
+            const fn = vi.fn();
+            const { rerender } = renderWithDelay(fn, 300);
+
+            rerender({ delay: 50 });
+            act(() => vi.advanceTimersByTime(1000));
+
+            expect(fn).not.toHaveBeenCalled();
+        });
+    });
+
     describe('maxWaitMs', () => {
         function callContinuously(call: (arg: string) => void, steps: number): void {
             for (let i = 0; i < steps; i += 1) {

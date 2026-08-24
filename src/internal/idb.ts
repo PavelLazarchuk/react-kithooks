@@ -263,11 +263,10 @@ export async function idbGet<T>(
 ): Promise<T | undefined> {
     const db = await ensureStore(dbName, storeName);
 
-    return new Promise((resolve, reject) => {
-        const req = db.transaction(storeName, 'readonly').objectStore(storeName).get(key);
+    return runTransaction(db, storeName, 'readonly', 'get', store => {
+        const req = store.get(key);
 
-        req.onsuccess = () => resolve(req.result as T | undefined);
-        req.onerror = () => reject(req.error ?? new Error('indexedDB get failed'));
+        return () => req.result as T | undefined;
     });
 }
 
@@ -279,26 +278,20 @@ export async function idbSet(
 ): Promise<void> {
     const db = await ensureStore(dbName, storeName);
 
-    return new Promise((resolve, reject) => {
-        const t = db.transaction(storeName, 'readwrite');
+    return runTransaction(db, storeName, 'readwrite', 'put', store => {
+        store.put(value, key);
 
-        t.objectStore(storeName).put(value, key);
-        t.oncomplete = () => resolve();
-        t.onerror = () => reject(t.error ?? new Error('indexedDB put failed'));
-        t.onabort = () => reject(t.error ?? new Error('indexedDB transaction aborted'));
+        return () => undefined;
     });
 }
 
 export async function idbRemove(dbName: string, storeName: string, key: string): Promise<void> {
     const db = await ensureStore(dbName, storeName);
 
-    return new Promise((resolve, reject) => {
-        const t = db.transaction(storeName, 'readwrite');
+    return runTransaction(db, storeName, 'readwrite', 'delete', store => {
+        store.delete(key);
 
-        t.objectStore(storeName).delete(key);
-        t.oncomplete = () => resolve();
-        t.onerror = () => reject(t.error ?? new Error('indexedDB delete failed'));
-        t.onabort = () => reject(t.error ?? new Error('indexedDB transaction aborted'));
+        return () => undefined;
     });
 }
 

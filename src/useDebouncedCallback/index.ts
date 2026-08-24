@@ -29,16 +29,20 @@ export function useDebouncedCallback<Args extends unknown[]>(
     delayMs: number,
     options: UseDebouncedCallbackOptions = {}
 ): DebouncedCallback<Args> {
+    const { maxWaitMs } = options;
+
     const fnRef = useRef(fn);
     fnRef.current = fn;
     const delayRef = useRef(delayMs);
     delayRef.current = delayMs;
-    const maxWaitRef = useRef(options.maxWaitMs);
-    maxWaitRef.current = options.maxWaitMs;
+    const maxWaitRef = useRef(maxWaitMs);
+    maxWaitRef.current = maxWaitMs;
 
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const argsRef = useRef<Args | null>(null);
     const pendingSinceRef = useRef<number | null>(null);
+    const lastCallAtRef = useRef(0);
+    const scheduleRef = useRef<() => void>(() => undefined);
 
     const debounced = useMemo<DebouncedCallback<Args>>(() => {
         const invoke = () => {
@@ -50,20 +54,27 @@ export function useDebouncedCallback<Args extends unknown[]>(
             if (args) fnRef.current(...args);
         };
 
-        const call = (...args: Args) => {
-            argsRef.current = args;
-
+        const schedule = () => {
             if (timerRef.current !== null) clearTimeout(timerRef.current);
 
-            if (pendingSinceRef.current === null) pendingSinceRef.current = Date.now();
+            const now = Date.now();
+            const maxWait = maxWaitRef.current;
+            const untilQuiet = lastCallAtRef.current + delayRef.current - now;
+            const untilMaxWait =
+                maxWait === undefined ? Infinity : (pendingSinceRef.current ?? now) + maxWait - now;
 
-            const maxWaitMs = maxWaitRef.current;
-            const remaining =
-                maxWaitMs === undefined
-                    ? delayRef.current
-                    : Math.max(0, pendingSinceRef.current + maxWaitMs - Date.now());
+            timerRef.current = setTimeout(invoke, Math.max(0, Math.min(untilQuiet, untilMaxWait)));
+        };
 
-            timerRef.current = setTimeout(invoke, Math.min(delayRef.current, remaining));
+        scheduleRef.current = schedule;
+
+        const call = (...args: Args) => {
+            argsRef.current = args;
+            lastCallAtRef.current = Date.now();
+
+            if (pendingSinceRef.current === null) pendingSinceRef.current = lastCallAtRef.current;
+
+            schedule();
         };
 
         return Object.assign(call, {
@@ -84,6 +95,10 @@ export function useDebouncedCallback<Args extends unknown[]>(
             isPending: () => timerRef.current !== null,
         });
     }, []);
+
+    useEffect(() => {
+        if (debounced.isPending()) scheduleRef.current();
+    }, [debounced, delayMs, maxWaitMs]);
 
     useEffect(() => () => debounced.cancel(), [debounced]);
 

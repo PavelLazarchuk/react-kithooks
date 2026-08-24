@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 
-import { idbSet, resetIdbConnectionsForTests } from './idb';
+import { idbGet, idbSet, resetIdbConnectionsForTests } from './idb';
 
 const DB_NAME = 'react-kithooks:idb-test';
 
@@ -50,5 +50,45 @@ describe('openAtVersion', () => {
         blocker.close();
         await settleOpenRequests();
         await expect(idbSet(DB_NAME, 'store-a', 'k', 2)).resolves.toBeUndefined();
+    });
+});
+
+describe('idbGet', () => {
+    afterEach(() => {
+        resetIdbConnectionsForTests();
+    });
+
+    it('rejects when the transaction aborts instead of hanging forever', async () => {
+        const transaction = {
+            objectStore: () => ({ get: () => ({ result: undefined }) }),
+            error: null,
+            onabort: null as (() => void) | null,
+            oncomplete: null,
+            onerror: null,
+            abort: () => undefined,
+        };
+        const db = {
+            version: 1,
+            objectStoreNames: { contains: () => true },
+            transaction: () => {
+                setTimeout(() => transaction.onabort?.(), 0);
+
+                return transaction;
+            },
+            close: () => undefined,
+            onversionchange: null,
+        };
+
+        (globalThis as unknown as { indexedDB: unknown }).indexedDB = {
+            open: () => {
+                const req: Record<string, unknown> = { result: db, error: null };
+
+                setTimeout(() => (req.onsuccess as (() => void) | undefined)?.(), 0);
+
+                return req;
+            },
+        };
+
+        await expect(idbGet(DB_NAME, 'store', 'k')).rejects.toThrow(/aborted/);
     });
 });

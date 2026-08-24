@@ -31,14 +31,14 @@
         "name": "react-kithooks/useBreakpoint",
         "path": "dist/useBreakpoint/index.js",
         "ignore": ["react", "react-dom"],
-        "limit": "1000 B",
+        "limit": "1.05 kB",
         "gzip": true
     },
     {
         "name": "react-kithooks/useDebouncedCallback",
         "path": "dist/useDebouncedCallback/index.js",
         "ignore": ["react", "react-dom"],
-        "limit": "525 B",
+        "limit": "575 B",
         "gzip": true
     },
     {
@@ -59,7 +59,7 @@
         "name": "react-kithooks/useFormCrashRecovery",
         "path": "dist/useFormCrashRecovery/index.js",
         "ignore": ["react", "react-dom"],
-        "limit": "4.25 kB",
+        "limit": "4.35 kB",
         "gzip": true
     },
     {
@@ -108,7 +108,7 @@
         "name": "react-kithooks/useMediaQuery",
         "path": "dist/useMediaQuery/index.js",
         "ignore": ["react", "react-dom"],
-        "limit": "500 B",
+        "limit": "575 B",
         "gzip": true
     },
     {
@@ -136,14 +136,14 @@
         "name": "react-kithooks/usePrefersColorScheme",
         "path": "dist/usePrefersColorScheme/index.js",
         "ignore": ["react", "react-dom"],
-        "limit": "575 B",
+        "limit": "650 B",
         "gzip": true
     },
     {
         "name": "react-kithooks/usePrefersReducedMotion",
         "path": "dist/usePrefersReducedMotion/index.js",
         "ignore": ["react", "react-dom"],
-        "limit": "550 B",
+        "limit": "625 B",
         "gzip": true
     },
     {
@@ -199,7 +199,7 @@
         "name": "react-kithooks/useFormCrashRecovery/rhf",
         "path": "dist/useFormCrashRecovery/rhf.js",
         "ignore": ["react", "react-dom", "react-hook-form"],
-        "limit": "4.5 kB",
+        "limit": "4.6 kB",
         "gzip": true
     },
     {
@@ -223,7 +223,7 @@
         "path": "dist/index.js",
         "import": "{ useBreakpoint }",
         "ignore": ["react", "react-dom"],
-        "limit": "825 B",
+        "limit": "900 B",
         "gzip": true
     },
     {
@@ -231,7 +231,7 @@
         "path": "dist/index.js",
         "import": "{ useDebouncedCallback }",
         "ignore": ["react", "react-dom"],
-        "limit": "350 B",
+        "limit": "425 B",
         "gzip": true
     },
     {
@@ -255,7 +255,7 @@
         "path": "dist/index.js",
         "import": "{ useFormCrashRecovery }",
         "ignore": ["react", "react-dom"],
-        "limit": "4.1 kB",
+        "limit": "4.2 kB",
         "gzip": true
     },
     {
@@ -311,7 +311,7 @@
         "path": "dist/index.js",
         "import": "{ useMediaQuery }",
         "ignore": ["react", "react-dom"],
-        "limit": "325 B",
+        "limit": "425 B",
         "gzip": true
     },
     {
@@ -343,7 +343,7 @@
         "path": "dist/index.js",
         "import": "{ usePrefersColorScheme }",
         "ignore": ["react", "react-dom"],
-        "limit": "400 B",
+        "limit": "475 B",
         "gzip": true
     },
     {
@@ -351,7 +351,7 @@
         "path": "dist/index.js",
         "import": "{ usePrefersReducedMotion }",
         "ignore": ["react", "react-dom"],
-        "limit": "375 B",
+        "limit": "450 B",
         "gzip": true
     },
     {

@@ -131,6 +131,42 @@ describe('useMediaQuery', () => {
             expect(media.matchMediaCalls()).toBe(202);
         });
 
+        it('never evicts a list something is still subscribed to', () => {
+            const media = installMatchMedia();
+            const { result } = renderHook(() => useMediaQuery(QUERY));
+
+            for (let i = 0; i < 250; i += 1) {
+                renderHook(() => useMediaQuery(`(min-width: ${i}px)`)).unmount();
+            }
+
+            act(() => media.setMatches(QUERY, true));
+            expect(result.current).toBe(true);
+
+            renderHook(() => useMediaQuery(QUERY));
+            expect(media.matchMediaCalls()).toBe(251);
+        });
+
+        it('evicts the least recently used list rather than dumping the whole cache', () => {
+            const media = installMatchMedia();
+            const recent = '(min-width: 999999px)';
+
+            renderHook(() => useMediaQuery(recent)).unmount();
+
+            for (let i = 0; i < 199; i += 1) {
+                renderHook(() => useMediaQuery(`(min-width: ${i}px)`)).unmount();
+            }
+
+            renderHook(() => useMediaQuery(recent)).unmount();
+            renderHook(() => useMediaQuery('(min-width: 12345px)')).unmount();
+            expect(media.matchMediaCalls()).toBe(201);
+
+            renderHook(() => useMediaQuery(recent)).unmount();
+            expect(media.matchMediaCalls()).toBe(201);
+
+            renderHook(() => useMediaQuery('(min-width: 0px)'));
+            expect(media.matchMediaCalls()).toBe(202);
+        });
+
         it('reuses the list on a later mount instead of rebuilding it', () => {
             const media = installMatchMedia();
 
