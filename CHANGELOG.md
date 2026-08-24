@@ -1,5 +1,11 @@
 # react-kithooks
 
+## 1.10.3
+
+### Patch Changes
+
+- 5f457a3: fix(useFormCrashRecovery): `clear()` now re-enables persistence after a `QuotaExceededError` (or a `first-tab-wins` conflict) had stopped it — previously a single failed write disabled drafts for the lifetime of the hook, even though `clear()` is what frees the space.
+
 ## 1.10.2
 
 ### Patch Changes
