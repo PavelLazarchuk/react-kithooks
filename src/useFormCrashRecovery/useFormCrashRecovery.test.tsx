@@ -91,6 +91,22 @@ describe('paths helpers', () => {
         expect(dropped).toEqual(['cb', 'nested.fn']);
     });
 
+    it('stripNonCloneable drops values that do not survive a structured clone, but keeps the ones that do', () => {
+        const node = document.createElement('input');
+        const date = new Date(0);
+        const { cleaned, dropped } = stripNonCloneable({
+            node,
+            win: window,
+            date,
+            set: new Set([1, 2]),
+            keep: 'yes',
+        });
+
+        expect(cleaned).toEqual({ date, set: new Set([1, 2]), keep: 'yes' });
+        expect(dropped).toEqual(['node', 'win']);
+        expect(() => structuredClone(cleaned)).not.toThrow();
+    });
+
     it('stripNonCloneable cleans EVERY occurrence of a shared reference, not just the first', () => {
         const shared = { fn: () => 1, keep: 'yes' };
         const { cleaned } = stripNonCloneable({ a: shared, b: shared });

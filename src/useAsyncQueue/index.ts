@@ -17,6 +17,7 @@ import {
     isAsyncQueueCancellation,
 } from '../internal/createAsyncQueue';
 import type { AsyncQueue, AsyncQueueStatus, EnqueueOptions } from '../internal/createAsyncQueue';
+import { isDev } from '../internal/isDev';
 import { getAsyncQueue } from './store';
 
 export type { AsyncQueueStatus, EnqueueOptions };
@@ -48,6 +49,8 @@ export interface AsyncQueueProviderProps {
 
 const AsyncQueueContext = createContext<AsyncQueue | null>(null);
 
+const warnedSharedQueues = new WeakSet<AsyncQueue>();
+
 export function AsyncQueueProvider(props: AsyncQueueProviderProps) {
     const queue = useMemo(() => createAsyncQueue({ concurrency: props.concurrency }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -66,7 +69,10 @@ export function AsyncQueueProvider(props: AsyncQueueProviderProps) {
  *
  * Raise `concurrency` to turn the same queue into a bounded worker pool —
  * uploading fifty files three at a time instead of all at once — while still
- * admitting them in enqueue order.
+ * admitting them in enqueue order. It belongs to the queue, not to the call
+ * site: on a shared queue (a key, or the provider's) it reconfigures the queue
+ * for every other consumer and is not reverted on unmount, which is why doing
+ * so warns once per queue in development.
  *
  * Which queue you get:
  *
@@ -120,8 +126,30 @@ export function useAsyncQueue(
     onErrorRef.current = options.onError;
 
     useEffect(() => {
-        if (concurrency !== undefined) queue.setConcurrency(concurrency);
-    }, [queue, concurrency]);
+        if (concurrency === undefined) return;
+
+        if (isDev && !warnedSharedQueues.has(queue)) {
+            const owner =
+                key !== undefined
+                    ? `the queue shared under the key "${key}"`
+                    : contextQueue !== null
+                      ? 'the AsyncQueueProvider queue shared by this subtree'
+                      : null;
+
+            if (owner !== null) {
+                warnedSharedQueues.add(queue);
+                console.warn(
+                    `[react-kithooks] useAsyncQueue: options.concurrency reconfigures ${owner}, ` +
+                        `so every other consumer of it runs at ${concurrency} too — and the change ` +
+                        `is not reverted when this component unmounts. Set the concurrency in a ` +
+                        `single owner (AsyncQueueProvider, or the first hook that claims the key), ` +
+                        `or drop the key to get a queue private to this hook.`
+                );
+            }
+        }
+
+        queue.setConcurrency(concurrency);
+    }, [queue, concurrency, key, contextQueue]);
 
     const enqueue = useCallback(
         <T>(task: () => Promise<T>, taskOptions?: EnqueueOptions): Promise<T> => {

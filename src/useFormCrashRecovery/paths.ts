@@ -68,6 +68,66 @@ export function deepMergeDefined<T>(base: T, overrides: Partial<T>): T {
     return result as T;
 }
 
+const CLONEABLE_TAGS = new Set([
+    '[object ArrayBuffer]',
+    '[object BigInt64Array]',
+    '[object BigUint64Array]',
+    '[object Blob]',
+    '[object DataView]',
+    '[object Date]',
+    '[object Error]',
+    '[object File]',
+    '[object FileList]',
+    '[object Float32Array]',
+    '[object Float64Array]',
+    '[object ImageData]',
+    '[object Int16Array]',
+    '[object Int32Array]',
+    '[object Int8Array]',
+    '[object Map]',
+    '[object RegExp]',
+    '[object Set]',
+    '[object Uint16Array]',
+    '[object Uint32Array]',
+    '[object Uint8Array]',
+    '[object Uint8ClampedArray]',
+]);
+
+const NON_CLONEABLE_HOST_TYPES = [
+    'Node',
+    'Window',
+    'Event',
+    'NodeList',
+    'HTMLCollection',
+    'DOMTokenList',
+];
+
+function isNonCloneableHostObject(input: object): boolean {
+    for (const name of NON_CLONEABLE_HOST_TYPES) {
+        const ctor = (globalThis as Record<string, unknown>)[name];
+
+        if (typeof ctor === 'function' && input instanceof (ctor as new () => unknown)) return true;
+    }
+
+    return false;
+}
+
+function isStructuredCloneable(input: object): boolean {
+    if (isNonCloneableHostObject(input)) return false;
+
+    if (typeof structuredClone === 'function') {
+        try {
+            structuredClone(input);
+
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    return CLONEABLE_TAGS.has(Object.prototype.toString.call(input));
+}
+
 export function stripNonCloneable<T>(value: T): { cleaned: T; dropped: string[] } {
     const dropped: string[] = [];
     const cleanedByInput = new WeakMap<object, unknown>();
@@ -80,9 +140,7 @@ export function stripNonCloneable<T>(value: T): { cleaned: T; dropped: string[] 
         }
         if (input === null || typeof input !== 'object') return input;
 
-        const previous = cleanedByInput.get(input);
-
-        if (previous !== undefined) return previous;
+        if (cleanedByInput.has(input)) return cleanedByInput.get(input);
 
         if (Array.isArray(input)) {
             const out: unknown[] = [];
@@ -98,6 +156,13 @@ export function stripNonCloneable<T>(value: T): { cleaned: T; dropped: string[] 
         const proto: unknown = Object.getPrototypeOf(input);
 
         if (proto !== Object.prototype && proto !== null) {
+            if (!isStructuredCloneable(input)) {
+                dropped.push(path || '(root)');
+                cleanedByInput.set(input, undefined);
+
+                return undefined;
+            }
+
             cleanedByInput.set(input, input);
 
             return input;

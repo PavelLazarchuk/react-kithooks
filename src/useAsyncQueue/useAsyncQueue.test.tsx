@@ -581,6 +581,44 @@ describe('useAsyncQueue', () => {
             await flush();
         });
 
+        it('warns once when concurrency reconfigures a queue shared by other consumers', async () => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+            const { unmount } = renderHook(() => useAsyncQueue('warn:keyed', { concurrency: 3 }));
+            await flush();
+
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(warn.mock.calls[0]?.[0]).toContain('warn:keyed');
+
+            unmount();
+            renderHook(() => useAsyncQueue('warn:keyed', { concurrency: 3 }));
+            await flush();
+
+            expect(warn).toHaveBeenCalledTimes(1);
+
+            warn.mockRestore();
+        });
+
+        it('warns when concurrency reconfigures the provider queue, but not a private one', async () => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+            renderHook(() => useAsyncQueue(undefined, { concurrency: 2 }));
+            await flush();
+
+            expect(warn).not.toHaveBeenCalled();
+
+            renderHook(() => useAsyncQueue(undefined, { concurrency: 2 }), {
+                wrapper: ({ children }: { children?: ReactNode }) =>
+                    createElement(AsyncQueueProvider, null, children),
+            });
+            await flush();
+
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(warn.mock.calls[0]?.[0]).toContain('AsyncQueueProvider');
+
+            warn.mockRestore();
+        });
+
         it('treats a nonsensical concurrency as 1 rather than stalling the queue', async () => {
             const gate = deferred();
             const { result } = renderHook(() => useAsyncQueue(undefined, { concurrency: 0 }));
