@@ -1,5 +1,23 @@
 # react-kithooks
 
+## 1.10.7
+
+### Patch Changes
+
+- fa73225: fix(useDebouncedCallback): a changed `delayMs` now re-arms the call already waiting
+
+    The pending timer kept the delay it was armed with, so a `delayMs` (or `maxWaitMs`) that changed mid-wait only took effect from the _next_ call — a control that drops its debounce from 1000 ms to 100 ms still made the user wait out the second the old value asked for. The wait is now measured from when the call was made and re-armed when the delay changes, so shortening it past the time already served fires the pending invocation at once, and lengthening it holds the call for the new delay counted from that same call rather than from the moment of the change. `useDebouncedValue` already re-armed on a changed delay; the two now agree.
+
+- fa73225: fix(useMediaQuery): evict the shared `MediaQueryList` cache by LRU instead of dropping it whole
+
+    The cache that `useMediaQuery`, `useBreakpoint`, `usePrefersColorScheme` and `usePrefersReducedMotion` share was cleared entirely once it reached 200 entries — including lists that live components were still subscribed to. Those listeners stay attached to the discarded object while every later snapshot read builds and reads a _second_ `MediaQueryList` for the same query, so an app that rotates through many queries quietly accumulated a duplicate list per subscribed query.
+
+    Entries are now evicted one at a time, least-recently-used first, and only when nothing is subscribed to them. A query with live subscribers is never evicted, so a component keeps the list it is listening to for as long as it is mounted.
+
+- fa73225: fix(useIndexedDB, useIndexedDBCollection, useFormCrashRecovery): a read whose transaction aborts no longer hangs forever
+
+    `idbGet` listened only to its own request. A transaction can abort without any request reporting an error — the database closing under it, or another tab's version upgrade taking it down — and in that case neither `onsuccess` nor `onerror` ever fired, so the promise never settled: `await` never returned, and `useIndexedDB` sat in `status: 'loading'` for the life of the page. Reads now go through the same transaction wrapper as every other operation, which settles on `oncomplete`, `onerror` and `onabort` alike. `idbSet` and `idbRemove` moved onto it too, so a write that throws synchronously (a non-cloneable value) now aborts its transaction instead of leaving it open.
+
 ## 1.10.6
 
 ### Patch Changes
