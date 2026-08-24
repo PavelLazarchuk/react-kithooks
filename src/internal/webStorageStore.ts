@@ -85,6 +85,16 @@ function createWebStorageStore(
             lazyStore.notify();
         };
         window.addEventListener('storage', storageHandler);
+
+        if (memoryOnly) return;
+
+        const next = readRaw(getStorage, key);
+
+        if (next === snapshot && next === localSnapshot) return;
+
+        snapshot = next;
+        localSnapshot = next;
+        lazyStore.notify();
     };
 
     const detachStorageListener = () => {

@@ -104,6 +104,28 @@ describe('useLocalStorage', () => {
         expect(() => simulateCrossTabWrite('count', '1')).not.toThrow();
     });
 
+    it('picks up a same-tab write made while nothing was subscribed', () => {
+        const first = renderHook(() => useLocalStorage('count', 0));
+        act(() => first.result.current[1](1));
+        first.unmount();
+
+        localStorage.setItem('count', JSON.stringify(7));
+
+        const second = renderHook(() => useLocalStorage('count', 0));
+        expect(second.result.current[0]).toBe(7);
+    });
+
+    it('picks up a same-tab write while nothing was subscribed with syncTabs: false', () => {
+        const first = renderHook(() => useLocalStorage('count', 0, { syncTabs: false }));
+        act(() => first.result.current[1](1));
+        first.unmount();
+
+        localStorage.setItem('count', JSON.stringify(7));
+
+        const second = renderHook(() => useLocalStorage('count', 0, { syncTabs: false }));
+        expect(second.result.current[0]).toBe(7);
+    });
+
     it('supports custom serialize/deserialize for non-JSON-safe values', () => {
         const options = {
             serialize: (value: Date) => value.toISOString(),
