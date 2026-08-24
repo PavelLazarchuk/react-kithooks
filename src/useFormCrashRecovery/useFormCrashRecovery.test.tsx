@@ -4,6 +4,26 @@ import { IDBFactory } from 'fake-indexeddb';
 
 import { useFormCrashRecovery } from './index';
 import { idbGet, idbPut, resetIdbCacheForTests } from './idb';
+
+const quota = vi.hoisted(() => ({ failWrites: false }));
+
+vi.mock('./idb', async importOriginal => {
+    const actual = await importOriginal<typeof import('./idb')>();
+
+    return {
+        ...actual,
+        idbPut: (key: string, value: unknown) => {
+            if (quota.failWrites) {
+                const err = new Error('quota');
+                err.name = 'QuotaExceededError';
+
+                return Promise.reject(err);
+            }
+
+            return actual.idbPut(key, value);
+        },
+    };
+});
 import { deepMergeDefined, omitPaths, stripNonCloneable } from './paths';
 
 const KEY = 'test-form';
@@ -113,6 +133,7 @@ describe('useFormCrashRecovery', () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+        quota.failWrites = false;
     });
 
     it('reports unsupported when indexedDB is missing and never throws', async () => {
@@ -220,6 +241,26 @@ describe('useFormCrashRecovery', () => {
         await new Promise(r => setTimeout(r, 50));
         expect(await idbGet(FULL_KEY)).toBeUndefined();
         expect(result.current.status).toBe('idle');
+    });
+
+    it('clear() re-enables persistence after a QuotaExceededError stopped it', async () => {
+        const { result, rerender } = renderRecovery({ title: '' });
+        await waitFor(() => expect(result.current.status).toBe('idle'));
+
+        quota.failWrites = true;
+        rerender({ value: { title: 'over quota' } });
+        await waitFor(() => expect(result.current.status).toBe('error'));
+
+        quota.failWrites = false;
+        await act(async () => {
+            await result.current.clear();
+        });
+
+        rerender({ value: { title: 'after clear' } });
+        await waitFor(() => expect(result.current.status).toBe('saved'));
+        expect(await idbGet<{ data: Draft }>(FULL_KEY)).toMatchObject({
+            data: { title: 'after clear' },
+        });
     });
 
     it('survives non-cloneable values by stripping them with a dev warning', async () => {

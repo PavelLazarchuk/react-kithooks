@@ -352,6 +352,8 @@ export function useFormCrashRecovery<T extends Record<string, unknown>>(
     const clear = useCallback(async (): Promise<void> => {
         pendingRef.current = null;
         cancelTimer();
+        stoppedRef.current = false;
+        persistDisabledRef.current = false;
         setRecoveredSynced(null);
         setLastSavedAt(null);
         setStatus('idle');
