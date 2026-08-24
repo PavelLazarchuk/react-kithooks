@@ -1,5 +1,11 @@
 # react-kithooks
 
+## 1.10.5
+
+### Patch Changes
+
+- 8c52d1d: fix(useLocalStorage/useSessionStorage): re-read storage when a surviving store is resubscribed, so a same-tab write that bypassed the hook is no longer missed
+
 ## 1.10.4
 
 ### Patch Changes
