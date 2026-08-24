@@ -210,6 +210,9 @@ export function useScrollAnchor<T extends HTMLElement = HTMLDivElement>(
 
             const onUserIntent = () => {
                 cancelSettleWindow();
+                smoothScrollUntilRef.current = 0;
+                programmaticTopRef.current = null;
+                updateAtBottom();
             };
 
             node.addEventListener('scroll', onScroll, { passive: true });

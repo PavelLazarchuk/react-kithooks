@@ -261,6 +261,25 @@ describe('useScrollAnchor', () => {
             expect(scrollTo).toHaveBeenCalledWith({ top: 500, behavior: 'smooth' });
         });
 
+        it('lets a wheel during the smooth-scroll window release the bottom lock', () => {
+            stubMatchMedia(false);
+            const box = makeScrollable({ scrollTop: 500 });
+            box.el.scrollTo = vi.fn() as unknown as typeof box.el.scrollTo;
+
+            const { result } = renderHook(() => useScrollAnchor({ initialScrollToBottom: false }));
+            act(() => result.current.ref(box.el));
+            act(() => result.current.scrollToBottom({ behavior: 'smooth' }));
+            expect(result.current.isAtBottom).toBe(true);
+
+            act(() => {
+                box.setScrollTop(0);
+                box.el.dispatchEvent(new Event('wheel'));
+                box.el.dispatchEvent(new Event('scroll'));
+            });
+
+            expect(result.current.isAtBottom).toBe(false);
+        });
+
         it('jumps instantly instead when the reader asked for reduced motion', () => {
             stubMatchMedia(true);
             const box = makeScrollable({ scrollTop: 0 });
