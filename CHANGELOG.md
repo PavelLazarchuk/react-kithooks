@@ -1,5 +1,25 @@
 # react-kithooks
 
+## 1.10.9
+
+### Patch Changes
+
+- 2a418b5: fix(usePermission): a slower, superseded query no longer reverts a fresher result
+
+    Two overlapping `refresh()` calls sharing the same activation epoch — a `visibilitychange` refresh racing an explicit `request()`'s own `await store.refresh()` — could resolve out of order. Whichever `navigator.permissions.query()` happened to settle last always won, even when it was the older call reporting a now-outdated state, silently reverting the snapshot until the next native `change` event. Each `refresh()` call is now tagged with a sequence number, and only the most recently started call is allowed to apply its result.
+
+- 2a418b5: fix(useScrollAnchor): a container swap no longer applies a stale anchor from the previous element
+
+    Attaching the `ref` to a new DOM node reset the tracked element and the programmatic-scroll marker, but left the pending-anchor, settle-window and smooth-scroll state untouched. A `prepend()` on one container followed by a ref swap to a different one — a virtualized or filtered list remounting its scroll element — left the old container's anchor and timers alive: the next mutation on the new container either mis-anchored against an element it doesn't contain, or applied the old container's scroll-height delta to the new one's geometry. All of that state is now cleared whenever the ref receives a different node.
+
+- 2a418b5: fix(useFormCrashRecovery): `flush()` no longer overwrites an unconsumed recovered draft
+
+    The debounced-persist effect only armed a write while `recovered` was still empty, but `flush()` — the function the armed timer, `pagehide`, `visibilitychange` and unmount all eventually call — never checked it. A `value` change landing between mount and the recovery read resolving (a normal ordering: React Hook Form hydrating `defaultValues` right after mount, before the async IndexedDB read returns) still scheduled a write. Once recovery resolved and populated `recovered`, that already-armed write fired anyway and silently replaced the stored draft with the pre-recovery value — the only copy that would have survived a second crash before the user restored or discarded it. `flush()` now bails out while a recovered draft is unconsumed, matching the scheduling effect's own rule.
+
+- 2a418b5: fix(useTabLeader): a same-tick unmount and remount of the last consumer no longer surrenders leadership
+
+    The election's `stop()` — which actually releases the Web Lock, or removes the `localStorage` heartbeat claim — ran synchronously the instant the last `useTabLeader(key)` consumer in a tab unmounted. A parent re-keying the owning component, or two sibling components trading places, unmounts and remounts within the same commit; that tore the running election down and rejoined the queue from scratch, letting a competing tab pick up leadership in the gap even though the tab never really went away. Releasing the election is now deferred by a microtask and skipped if a new subscriber shows up before it runs, the same pattern already used to avoid evicting a still-used cache entry.
+
 ## 1.10.8
 
 ### Patch Changes
