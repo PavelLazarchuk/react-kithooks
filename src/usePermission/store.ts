@@ -29,6 +29,7 @@ function createStore(kind: PermissionKind): PermissionStore {
     let nativeChangeHandler: (() => void) | null = null;
     let visibilityHandler: (() => void) | null = null;
     let epoch = 0;
+    let refreshSeq = 0;
 
     const set = (next: PermissionStatusEx) => {
         if (next === snapshot) return;
@@ -37,7 +38,7 @@ function createStore(kind: PermissionKind): PermissionStore {
         lazyStore.notify();
     };
 
-    const applyFallback = async (startedAt: number): Promise<void> => {
+    const applyFallback = async (startedAt: number, mySeq: number): Promise<void> => {
         if (kind === 'notifications' && typeof Notification !== 'undefined') {
             set(mapNotificationPermission(Notification.permission));
 
@@ -52,7 +53,7 @@ function createStore(kind: PermissionKind): PermissionStore {
             try {
                 const persisted = await navigator.storage.persisted();
 
-                if (startedAt !== epoch) return;
+                if (startedAt !== epoch || mySeq !== refreshSeq) return;
 
                 set(persisted ? 'granted' : 'prompt');
 
@@ -62,11 +63,13 @@ function createStore(kind: PermissionKind): PermissionStore {
             }
         }
 
-        if (startedAt !== epoch) return;
+        if (startedAt !== epoch || mySeq !== refreshSeq) return;
         if (snapshot === 'loading') set('unsupported');
     };
 
     const refresh = async (): Promise<void> => {
+        const mySeq = (refreshSeq += 1);
+
         if (typeof navigator === 'undefined') {
             set('unsupported');
 
@@ -81,7 +84,7 @@ function createStore(kind: PermissionKind): PermissionStore {
         const startedAt = epoch;
 
         if (!navigator.permissions?.query) {
-            await applyFallback(startedAt);
+            await applyFallback(startedAt, mySeq);
 
             return;
         }
@@ -101,9 +104,9 @@ function createStore(kind: PermissionKind): PermissionStore {
                 }
             }
 
-            set(status.state);
+            if (mySeq === refreshSeq) set(status.state);
         } catch {
-            await applyFallback(startedAt);
+            await applyFallback(startedAt, mySeq);
         }
     };
 

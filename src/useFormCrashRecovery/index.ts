@@ -145,7 +145,9 @@ export function useFormCrashRecovery<T extends Record<string, unknown>>(
         cancelTimer();
         const pending = pendingRef.current;
 
-        if (!pending || stoppedRef.current || persistDisabledRef.current) return;
+        if (!pending || stoppedRef.current || persistDisabledRef.current || recoveredRef.current) {
+            return;
+        }
 
         const channelEntry = channelRef.current;
 

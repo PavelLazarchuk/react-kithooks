@@ -139,6 +139,22 @@ describe('useTabLeader', () => {
         await vi.waitFor(() => expect(tabB.result.current.isLeader).toBe(true));
     });
 
+    it('keeps leadership across a same-tick unmount+remount of the last consumer', async () => {
+        const tabA = renderHook(() => useTabLeader('room'));
+        await vi.waitFor(() => expect(tabA.result.current.isLeader).toBe(true));
+
+        tabA.unmount();
+        const tabA2 = renderHook(() => useTabLeader('room'));
+
+        expect(tabA2.result.current.status).toBe('leader');
+        expect(tabA2.result.current.isLeader).toBe(true);
+
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(tabA2.result.current.isLeader).toBe(true);
+    });
+
     it('does not leak a granted lock when unmount races ahead of the grant, orphaning it forever', async () => {
         const { unmount } = renderHook(() => useTabLeader('room'));
         unmount();
@@ -219,6 +235,9 @@ describe('useTabLeader', () => {
             expect(tabB.result.current.status).toBe('follower');
 
             tabA.unmount();
+            await act(async () => {
+                await Promise.resolve();
+            });
             expect(localStorage.getItem(LOCK_KEY)).toBeNull();
 
             act(() => simulateCrossTabWrite(LOCK_KEY, null));
@@ -251,6 +270,9 @@ describe('useTabLeader', () => {
             expect(tabA.result.current.status).toBe('pending');
 
             tabA.unmount();
+            await act(async () => {
+                await Promise.resolve();
+            });
 
             expect(localStorage.getItem(LOCK_KEY)).toBeNull();
 

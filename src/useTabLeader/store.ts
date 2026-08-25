@@ -27,8 +27,12 @@ function createStore(key: string, onDisposable: (store: TabLeaderStore) => void)
         subscribe: listener => lazyStore.subscribe(listener),
     };
 
+    let deactivateScheduled = false;
+
     const lazyStore = createLazyStore(
         () => {
+            if (election) return;
+
             election = startElection(key, {
                 onStatusChange: status => {
                     snapshot = { status, mechanism: election?.mechanism ?? null };
@@ -37,10 +41,19 @@ function createStore(key: string, onDisposable: (store: TabLeaderStore) => void)
             });
         },
         () => {
-            election?.stop();
-            election = null;
-            snapshot = IDLE_SNAPSHOT;
-            scheduleDispose();
+            if (deactivateScheduled) return;
+
+            deactivateScheduled = true;
+            queueMicrotask(() => {
+                deactivateScheduled = false;
+
+                if (lazyStore.size > 0) return;
+
+                election?.stop();
+                election = null;
+                snapshot = IDLE_SNAPSHOT;
+                scheduleDispose();
+            });
         }
     );
 

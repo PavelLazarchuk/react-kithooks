@@ -173,6 +173,16 @@ export function useScrollAnchor<T extends HTMLElement = HTMLDivElement>(
         node => {
             cleanupRef.current?.();
             cleanupRef.current = null;
+
+            if (pendingTimerRef.current !== null) {
+                clearTimeout(pendingTimerRef.current);
+                pendingTimerRef.current = null;
+            }
+            pendingRef.current = null;
+            settleAnchorRef.current = null;
+            settleUntilRef.current = 0;
+            smoothScrollUntilRef.current = 0;
+
             elRef.current = node;
             programmaticTopRef.current = null;
 

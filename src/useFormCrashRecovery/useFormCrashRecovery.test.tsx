@@ -5,7 +5,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { useFormCrashRecovery } from './index';
 import { idbGet, idbPut, resetIdbCacheForTests } from './idb';
 
-const quota = vi.hoisted(() => ({ failWrites: false }));
+const quota = vi.hoisted(() => ({ failWrites: false, recoveryDelayMs: 0 }));
 
 vi.mock('./idb', async importOriginal => {
     const actual = await importOriginal<typeof import('./idb')>();
@@ -21,6 +21,13 @@ vi.mock('./idb', async importOriginal => {
             }
 
             return actual.idbPut(key, value);
+        },
+        idbGet: async (key: string) => {
+            if (quota.recoveryDelayMs > 0) {
+                await new Promise(r => setTimeout(r, quota.recoveryDelayMs));
+            }
+
+            return actual.idbGet(key);
         },
     };
 });
@@ -150,6 +157,7 @@ describe('useFormCrashRecovery', () => {
     afterEach(() => {
         vi.restoreAllMocks();
         quota.failWrites = false;
+        quota.recoveryDelayMs = 0;
     });
 
     it('reports unsupported when indexedDB is missing and never throws', async () => {
@@ -409,6 +417,22 @@ describe('useFormCrashRecovery', () => {
             const after = await idbGet<any>(FULL_KEY);
             expect(after?.data.title).toBe('after discard');
         });
+    });
+
+    it('flush() re-checks the recovered draft, so a write scheduled before recovery resolves cannot overwrite it', async () => {
+        await seedRecord();
+        quota.recoveryDelayMs = 20;
+
+        const { result, rerender } = renderRecovery({ title: '' }, { debounceMs: 100 });
+        rerender({ value: { title: 'raced before recovery resolved' } });
+
+        await waitFor(() => expect(result.current.recovered).not.toBeNull());
+        quota.recoveryDelayMs = 0;
+
+        await new Promise(r => setTimeout(r, 150));
+
+        const rec = await idbGet<any>(FULL_KEY);
+        expect(rec.data.title).toBe('draft');
     });
 
     it('restore() immediately after clear() in the same handler does not return a stale draft', async () => {

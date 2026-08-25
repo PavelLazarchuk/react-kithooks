@@ -348,6 +348,35 @@ describe('useScrollAnchor', () => {
         }
     });
 
+    it('does not apply a stale pending anchor from the previous container after a container swap', async () => {
+        const boxA = makeScrollable({ scrollTop: 0 });
+        const anchorA = addChild(boxA.el, 0);
+        const boxB = makeScrollable({ scrollTop: 50, scrollHeight: 1000 });
+
+        const { result } = renderHook(() => useScrollAnchor({ initialScrollToBottom: false }));
+        act(() => result.current.ref(boxA.el));
+        boxA.setScrollTop(0);
+
+        act(() => {
+            result.current.prepend(() => {
+                const older = document.createElement('div');
+                boxA.el.insertBefore(older, anchorA);
+                setOffsetTop(anchorA, 300);
+                boxA.setScrollHeight(1300);
+            });
+        });
+
+        act(() => result.current.ref(boxB.el));
+
+        act(() => {
+            boxB.setScrollHeight(1200);
+            boxB.el.appendChild(document.createElement('div'));
+        });
+        await flushMutations();
+
+        expect(boxB.scrollTop()).toBe(50);
+    });
+
     it('clears the pending anchor timer when the component unmounts', () => {
         vi.useFakeTimers();
         try {

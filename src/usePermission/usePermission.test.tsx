@@ -72,6 +72,45 @@ describe('usePermission', () => {
         expect(result.current.isDenied).toBe(true);
     });
 
+    it('a slower query resolving after a newer one does not revert the newer result', async () => {
+        const statusA = new FakePermissionStatus('prompt');
+        const statusB = new FakePermissionStatus('granted');
+        const resolvers: Array<(s: FakePermissionStatus) => void> = [];
+        const query = vi.fn(
+            () =>
+                new Promise<FakePermissionStatus>(resolve => {
+                    resolvers.push(resolve);
+                })
+        );
+        Object.defineProperty(navigator, 'permissions', { value: { query }, configurable: true });
+
+        const { result } = renderHook(() => usePermission('camera'));
+
+        Object.defineProperty(document, 'visibilityState', {
+            value: 'visible',
+            configurable: true,
+        });
+        try {
+            act(() => {
+                document.dispatchEvent(new Event('visibilitychange'));
+            });
+
+            expect(resolvers.length).toBe(2);
+
+            await act(async () => {
+                resolvers[1]!(statusB);
+            });
+            expect(result.current.status).toBe('granted');
+
+            await act(async () => {
+                resolvers[0]!(statusA);
+            });
+            expect(result.current.status).toBe('granted');
+        } finally {
+            delete (document as any).visibilityState;
+        }
+    });
+
     it('reports unsupported when query throws (e.g. clipboard-read in Firefox)', async () => {
         stubPermissionsQuery(() => Promise.reject(new TypeError('unsupported name')));
 
