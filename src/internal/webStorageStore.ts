@@ -54,6 +54,7 @@ function createWebStorageStore(
                 } else {
                     storage.setItem(key, raw);
                 }
+                memoryOnly = false;
             } catch {
                 memoryOnly = true;
             }
