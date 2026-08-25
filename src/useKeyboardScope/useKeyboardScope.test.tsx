@@ -4,6 +4,7 @@ import { createElement, StrictMode } from 'react';
 import type { ReactNode } from 'react';
 
 import { useKeyboardScope, KeyboardScopeProvider } from './index';
+import type { KeyBindings } from './index';
 import { clearComboCache, resetDefaultManager } from './manager';
 
 function press(key: string, init: KeyboardEventInit = {}, target: EventTarget = document) {
@@ -114,6 +115,41 @@ describe('useKeyboardScope', () => {
         expect(handler).toHaveBeenCalledTimes(2);
         press('k', { metaKey: true });
         expect(handler).toHaveBeenCalledTimes(2);
+    });
+
+    it('ignores bindings inherited from the object prototype', () => {
+        const inherited = vi.fn();
+        const own = vi.fn();
+        const bindings: KeyBindings = Object.assign(Object.create({ j: inherited }) as object, {
+            k: own,
+        });
+
+        renderHook(() => useKeyboardScope(bindings));
+
+        press('j');
+        expect(inherited).not.toHaveBeenCalled();
+
+        press('k');
+        expect(own).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps matching once the combo cache passes its cap', () => {
+        const below = vi.fn();
+        renderHook(() => useKeyboardScope({ 'shift+q': below }));
+
+        const many: KeyBindings = {};
+
+        for (let i = 0; i < 600; i += 1) many[`ctrl+f${i}`] = () => undefined;
+
+        const last = vi.fn();
+        many['ctrl+z'] = last;
+        renderHook(() => useKeyboardScope(many, { passthrough: true }));
+
+        press('z', { ctrlKey: true });
+        expect(last).toHaveBeenCalledTimes(1);
+
+        press('Q', { shiftKey: true });
+        expect(below).toHaveBeenCalledTimes(1);
     });
 
     it('skips form elements unless enableOnFormElements', () => {

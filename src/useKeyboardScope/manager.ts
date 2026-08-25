@@ -82,7 +82,12 @@ export function clearComboCache(): void {
 function parseCombos(spec: string): ParsedCombo[] {
     const cached = comboCache.get(spec);
 
-    if (cached) return cached;
+    if (cached) {
+        comboCache.delete(spec);
+        comboCache.set(spec, cached);
+
+        return cached;
+    }
 
     const combos = spec.split(',').map((raw): ParsedCombo => {
         const combo: ParsedCombo = {
@@ -130,7 +135,11 @@ function parseCombos(spec: string): ParsedCombo[] {
         return combo;
     });
 
-    if (comboCache.size >= COMBO_CACHE_MAX) comboCache.clear();
+    if (comboCache.size >= COMBO_CACHE_MAX) {
+        const oldest = comboCache.keys().next().value;
+
+        if (oldest !== undefined) comboCache.delete(oldest);
+    }
 
     comboCache.set(spec, combos);
 
@@ -272,7 +281,7 @@ export class KeyboardScopeManager {
         const formTarget = isFormTarget(e);
         const bindings = entry.getBindings();
 
-        for (const keys in bindings) {
+        for (const keys of Object.keys(bindings)) {
             const value = bindings[keys];
 
             if (value === undefined) continue;
