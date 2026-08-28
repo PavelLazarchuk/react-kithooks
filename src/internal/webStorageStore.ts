@@ -62,6 +62,8 @@ function createWebStorageStore(
             memoryOnly = true;
         }
 
+        scheduleDispose();
+
         if (snapshot === raw && localSnapshot === raw) return;
 
         snapshot = raw;

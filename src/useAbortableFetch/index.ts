@@ -65,6 +65,8 @@ export function useAbortableFetch<T>(
     fetcherRef.current = fetcher;
     const keepPreviousDataRef = useRef(keepPreviousData);
     keepPreviousDataRef.current = keepPreviousData;
+    const enabledRef = useRef(enabled);
+    enabledRef.current = enabled;
 
     const controllerRef = useRef<AbortController | null>(null);
     const requestIdRef = useRef(0);
@@ -93,6 +95,8 @@ export function useAbortableFetch<T>(
                 setState(stopFetching);
             },
             run: (): Promise<void> => {
+                if (!enabledRef.current) return Promise.resolve();
+
                 abort();
 
                 const controller = new AbortController();

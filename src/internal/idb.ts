@@ -413,5 +413,10 @@ export async function idbIterate<T>(
 }
 
 export function resetIdbConnectionsForTests(): void {
+    for (const state of dbStates.values()) {
+        state.db?.close();
+        state.db = null;
+    }
+
     dbStates.reset();
 }

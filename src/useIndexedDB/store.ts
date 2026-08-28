@@ -16,6 +16,7 @@ export interface IndexedDBStore<T> {
     subscribe: (listener: () => void) => () => void;
     set: (value: T) => Promise<void>;
     remove: () => Promise<void>;
+    peekLatestValue: () => { hasValue: boolean; value: T | undefined };
 }
 
 function createStore<T>(
@@ -25,6 +26,8 @@ function createStore<T>(
     onDisposable: (store: IndexedDBStore<T>) => void
 ): IndexedDBStore<T> {
     let entry: IndexedDBEntry<T> = { status: 'loading', value: undefined };
+    let latestValue: T | undefined = undefined;
+    let hasLatestValue = false;
     let unsubscribeFromChanges: (() => void) | null = null;
     let inFlight = 0;
     let seq = 0;
@@ -44,6 +47,8 @@ function createStore<T>(
             if (ticket !== seq) return;
 
             entry = { status: 'ready', value };
+            latestValue = value;
+            hasLatestValue = value !== undefined;
             lazyStore.notify();
         } catch {
             if (ticket !== seq) return;
@@ -70,6 +75,9 @@ function createStore<T>(
         inFlight += 1;
 
         const ticket = ++seq;
+
+        latestValue = next;
+        hasLatestValue = next !== undefined;
 
         try {
             await op();
@@ -98,6 +106,7 @@ function createStore<T>(
         subscribe: listener => lazyStore.subscribe(listener),
         set: value => write(() => idbSet(dbName, storeName, key, value), value),
         remove: () => write(() => idbRemove(dbName, storeName, key), undefined),
+        peekLatestValue: () => ({ hasValue: hasLatestValue, value: latestValue }),
     };
 
     const scheduleDispose = createDisposeScheduler(

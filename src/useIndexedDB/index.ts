@@ -99,11 +99,8 @@ export function useIndexedDB<T>(
 
     const setValue = useCallback(
         (next: T | ((prev: T) => T)) => {
-            const current = store.getSnapshot();
-            const prev =
-                current.status === 'ready' && current.value !== undefined
-                    ? current.value
-                    : getInitial();
+            const latest = store.peekLatestValue();
+            const prev = latest.hasValue ? (latest.value as T) : getInitial();
             const resolved = typeof next === 'function' ? (next as (prev: T) => T)(prev) : next;
 
             return withErrorHandler(store.set(resolved));

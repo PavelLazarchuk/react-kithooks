@@ -3,6 +3,7 @@ export interface KeyedCache<K, V> {
     peek: (key: K) => V | undefined;
     delete: (key: K) => void;
     reset: () => void;
+    values: () => IterableIterator<V>;
 }
 
 export function createKeyedCache<K, V>(factory: (key: K) => V): KeyedCache<K, V> {
@@ -19,5 +20,6 @@ export function createKeyedCache<K, V>(factory: (key: K) => V): KeyedCache<K, V>
             cache.delete(key);
         },
         reset: () => cache.clear(),
+        values: () => cache.values(),
     };
 }
