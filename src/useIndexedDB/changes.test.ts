@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
     channelName,
@@ -7,7 +7,14 @@ import {
     subscribeToStoreChanges,
 } from './changes';
 
-const flush = () => new Promise(resolve => setTimeout(resolve, 0));
+async function waitForCondition(check: () => boolean, timeoutMs = 2000): Promise<void> {
+    await vi.waitFor(
+        () => {
+            if (!check()) throw new Error('condition not met yet');
+        },
+        { timeout: timeoutMs, interval: 10 }
+    );
+}
 
 describe('changes', () => {
     beforeEach(() => {
@@ -25,7 +32,7 @@ describe('changes', () => {
         foreign.onmessage = event => received.push((event.data as { key: string | null }).key);
 
         publishStoreChange('db-adhoc', 'store-adhoc', 'k1');
-        await flush();
+        await waitForCondition(() => received.length > 0);
 
         expect(received).toEqual(['k1']);
         foreign.close();
@@ -44,7 +51,7 @@ describe('changes', () => {
         const foreign = new BroadcastChannel(channelName('db-multi', 'store-multi'));
 
         foreign.postMessage({ key: 'still-open' });
-        await flush();
+        await waitForCondition(() => seenB.length > 0);
 
         expect(seenB).toEqual(['still-open']);
         foreign.close();
