@@ -284,6 +284,163 @@ describe('useKeyboardScope', () => {
         expect(handler).toHaveBeenCalledTimes(1);
     });
 
+    it("resolves 'mod' via the userAgent fallback when platform is unavailable", () => {
+        const handler = vi.fn();
+        Object.defineProperty(navigator, 'platform', { value: undefined, configurable: true });
+        Object.defineProperty(navigator, 'userAgent', {
+            value: 'Mozilla/5.0 (iPhone; CPU iPhone OS)',
+            configurable: true,
+        });
+        renderHook(() => useKeyboardScope({ 'mod+k': handler }));
+
+        press('k', { metaKey: true });
+        expect(handler).toHaveBeenCalledTimes(1);
+
+        Object.defineProperty(navigator, 'platform', { value: '', configurable: true });
+    });
+
+    it("resolves 'mod' via the platform fallback when userAgent is unavailable", () => {
+        const handler = vi.fn();
+        Object.defineProperty(navigator, 'platform', { value: 'Win32', configurable: true });
+        Object.defineProperty(navigator, 'userAgent', { value: undefined, configurable: true });
+        renderHook(() => useKeyboardScope({ 'mod+k': handler }));
+
+        press('k', { ctrlKey: true });
+        expect(handler).toHaveBeenCalledTimes(1);
+
+        Object.defineProperty(navigator, 'userAgent', { value: '', configurable: true });
+    });
+
+    it("falls back to ctrl for 'mod' when navigator itself is unavailable", () => {
+        const handler = vi.fn();
+        vi.stubGlobal('navigator', undefined);
+
+        try {
+            renderHook(() => useKeyboardScope({ 'mod+k': handler }));
+            press('k', { ctrlKey: true });
+            expect(handler).toHaveBeenCalledTimes(1);
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it.each(['meta', 'cmd', 'command'])("recognizes the '%s' modifier alias", spec => {
+        const handler = vi.fn();
+        renderHook(() => useKeyboardScope({ [`${spec}+k`]: handler }));
+        press('k', { metaKey: true });
+        expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(['alt', 'option'])("recognizes the '%s' modifier alias", spec => {
+        const handler = vi.fn();
+        renderHook(() => useKeyboardScope({ [`${spec}+k`]: handler }));
+        press('k', { altKey: true });
+        expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    it("matches a physical key via 'code:' regardless of the produced character", () => {
+        const handler = vi.fn();
+        renderHook(() => useKeyboardScope({ 'code:KeyQ': handler }));
+
+        press('a', { code: 'KeyR' });
+        expect(handler).not.toHaveBeenCalled();
+
+        press('a', { code: 'KeyQ' });
+        expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    it("'esc' spec text matches the Escape key", () => {
+        const handler = vi.fn();
+        renderHook(() => useKeyboardScope({ esc: handler }));
+        press('Escape');
+        expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    it('a binding whose spec has no actual key (only modifiers) never matches', () => {
+        const handler = vi.fn();
+        renderHook(() => useKeyboardScope({ 'ctrl+shift': handler }));
+        press('a', { ctrlKey: true, shiftKey: true });
+        expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('requires an exact meta/alt modifier match, not just the base key', () => {
+        const plain = vi.fn();
+        renderHook(() => useKeyboardScope({ k: plain }));
+
+        press('k', { metaKey: true });
+        expect(plain).not.toHaveBeenCalled();
+
+        press('k', { altKey: true });
+        expect(plain).not.toHaveBeenCalled();
+
+        press('k');
+        expect(plain).toHaveBeenCalledTimes(1);
+    });
+
+    it('a plain (non-symbol) binding requires shiftKey to match exactly', () => {
+        const plain = vi.fn();
+        renderHook(() => useKeyboardScope({ k: plain }));
+
+        press('k', { shiftKey: true });
+        expect(plain).not.toHaveBeenCalled();
+    });
+
+    it('ignores repeated keydown events when ignoreRepeat is set', () => {
+        const handler = vi.fn();
+        renderHook(() => useKeyboardScope({ k: { handler, ignoreRepeat: true } }));
+
+        press('k', { repeat: true });
+        expect(handler).not.toHaveBeenCalled();
+
+        press('k');
+        expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    it('skips a binding whose value is explicitly undefined', () => {
+        const fallback = vi.fn();
+        const bindings: Record<string, KeyBindings[string] | undefined> = {
+            a: undefined,
+        };
+        renderHook(() =>
+            useKeyboardScope({ ...(bindings as KeyBindings), b: fallback }, { passthrough: true })
+        );
+
+        press('a');
+        press('b');
+        expect(fallback).toHaveBeenCalledTimes(1);
+    });
+
+    it('a matched Escape binding runs instead of onEscape, honoring preventDefault', () => {
+        const escapeHandler = vi.fn();
+        const onEscape = vi.fn();
+        renderHook(() => useKeyboardScope({ escape: escapeHandler }, { onEscape }));
+
+        const event = press('Escape');
+        expect(escapeHandler).toHaveBeenCalledTimes(1);
+        expect(onEscape).not.toHaveBeenCalled();
+        expect(event.defaultPrevented).toBe(true);
+    });
+
+    it('a matched Escape binding can opt out of preventDefault', () => {
+        const escapeHandler = vi.fn();
+        renderHook(() =>
+            useKeyboardScope({ escape: { handler: escapeHandler, preventDefault: false } })
+        );
+
+        const event = press('Escape');
+        expect(escapeHandler).toHaveBeenCalledTimes(1);
+        expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('a matched non-Escape binding can opt out of preventDefault', () => {
+        const handler = vi.fn();
+        renderHook(() => useKeyboardScope({ a: { handler, preventDefault: false } }));
+
+        const event = press('a');
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(event.defaultPrevented).toBe(false);
+    });
+
     it('KeyboardScopeProvider isolates scopes to a custom target', () => {
         const handler = vi.fn();
         const target = document.createElement('div');
