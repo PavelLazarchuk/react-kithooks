@@ -85,7 +85,7 @@ export function createAsyncQueue(options: CreateAsyncQueueOptions = {}): AsyncQu
     let running = 0;
     let paused = false;
     const queue: QueueItem[] = [];
-    const runningKeys = new Set<string>();
+    const runningKeys = new Set<string | undefined>();
     let snapshot: AsyncQueueSnapshot = IDLE;
     const listeners = createListenerSet();
 
@@ -136,25 +136,13 @@ export function createAsyncQueue(options: CreateAsyncQueueOptions = {}): AsyncQu
         });
     };
 
-    const nextRunnableIndex = (): number => {
-        for (let i = 0; i < queue.length; i += 1) {
-            const item = queue[i];
-
-            if (item && (item.key === undefined || !runningKeys.has(item.key))) return i;
-        }
-
-        return -1;
-    };
-
     const pump = () => {
         while (!paused && running < concurrency) {
-            const index = nextRunnableIndex();
+            const index = queue.findIndex(item => !runningKeys.has(item.key));
 
-            if (index === -1) break;
+            if (index < 0) break;
 
-            const [item] = queue.splice(index, 1);
-
-            if (item) item.start();
+            queue.splice(index, 1)[0]?.start();
         }
 
         publish();

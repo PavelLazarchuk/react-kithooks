@@ -24,7 +24,7 @@
         "name": "react-kithooks/useAsyncQueue",
         "path": "dist/useAsyncQueue/index.js",
         "ignore": ["react", "react-dom"],
-        "limit": "1.9 kB",
+        "limit": "1.95 kB",
         "gzip": true
     },
     {

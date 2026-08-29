@@ -1,6 +1,5 @@
 import { createAsyncQueue } from './createAsyncQueue';
 import type { AsyncQueue } from './createAsyncQueue';
-import { createKeyedCache } from './keyedCache';
 
 interface DbState {
     db: IDBDatabase | null;
@@ -41,10 +40,18 @@ interface NormalizedIndex {
     multiEntry: boolean;
 }
 
-const dbStates = createKeyedCache<string, DbState>(() => ({
-    db: null,
-    queue: createAsyncQueue(),
-}));
+const dbStates = new Map<string, DbState>();
+
+function getDbState(dbName: string): DbState {
+    let state = dbStates.get(dbName);
+
+    if (!state) {
+        state = { db: null, queue: createAsyncQueue() };
+        dbStates.set(dbName, state);
+    }
+
+    return state;
+}
 
 export function idbSupported(): boolean {
     return typeof indexedDB !== 'undefined';
@@ -150,7 +157,7 @@ function ensureStore(
     storeName: string,
     indexes?: IdbIndexes
 ): Promise<IDBDatabase> {
-    const state = dbStates.get(dbName);
+    const state = getDbState(dbName);
     const wanted = normalizeIndexes(indexes);
 
     return state.queue.enqueue(async () => {
@@ -418,5 +425,5 @@ export function resetIdbConnectionsForTests(): void {
         state.db = null;
     }
 
-    dbStates.reset();
+    dbStates.clear();
 }
