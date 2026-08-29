@@ -85,6 +85,7 @@ export function createAsyncQueue(options: CreateAsyncQueueOptions = {}): AsyncQu
     let running = 0;
     let paused = false;
     const queue: QueueItem[] = [];
+    const runningKeys = new Set<string>();
     let snapshot: AsyncQueueSnapshot = IDLE;
     const listeners = createListenerSet();
 
@@ -135,9 +136,23 @@ export function createAsyncQueue(options: CreateAsyncQueueOptions = {}): AsyncQu
         });
     };
 
+    const nextRunnableIndex = (): number => {
+        for (let i = 0; i < queue.length; i += 1) {
+            const item = queue[i];
+
+            if (item && (item.key === undefined || !runningKeys.has(item.key))) return i;
+        }
+
+        return -1;
+    };
+
     const pump = () => {
-        while (!paused && running < concurrency && queue.length > 0) {
-            const item = queue.shift();
+        while (!paused && running < concurrency) {
+            const index = nextRunnableIndex();
+
+            if (index === -1) break;
+
+            const [item] = queue.splice(index, 1);
 
             if (item) item.start();
         }
@@ -190,12 +205,14 @@ export function createAsyncQueue(options: CreateAsyncQueueOptions = {}): AsyncQu
             item = {
                 start: () => {
                     running += 1;
+                    if (key !== undefined) runningKeys.add(key);
 
                     Promise.resolve()
                         .then(task)
                         .then(resolve, reject)
                         .finally(() => {
                             running -= 1;
+                            if (key !== undefined) runningKeys.delete(key);
                             pump();
                         });
                 },
