@@ -24,6 +24,20 @@ const [submit, { pending }] = useSingleFlight(async (data: FormData) => api.save
 </button>;
 ```
 
+If a call can hang forever, `cancel()` gives the lock back so the button becomes clickable again:
+
+```tsx
+const [submit, { pending, cancel }] = useSingleFlight(save);
+
+useEffect(() => {
+    if (!pending) return;
+
+    const timer = setTimeout(cancel, 30_000);
+
+    return () => clearTimeout(timer);
+}, [pending, cancel]);
+```
+
 For an idempotent read where every caller wants the same answer, share the in-flight call instead of dropping it:
 
 ```tsx
@@ -68,6 +82,7 @@ A tuple:
 | ------------------ | -------------------------------------- | --------------------------------------------------- |
 | `run`              | `(...args) => Promise<T \| undefined>` | Stable identity for the component's lifetime.       |
 | `controls.pending` | `boolean`                              | Whether a call is in flight. State — it re-renders. |
+| `controls.cancel`  | `() => void`                           | Releases the lock by hand. Stable identity.         |
 
 ## Notes
 
@@ -78,6 +93,7 @@ A tuple:
 - **`fn` is read from a ref**, so `run` never goes stale and is safe in effect deps or a memoized child.
 - **Only args of the first call are used** in `'share'` mode — that's why it fits reads, not writes.
 - **The lock is per hook instance.** Two components each calling their own `useSingleFlight` can still run at the same time; for a guard shared across the tree, reach for [useAsyncQueue](../useAsyncQueue/README.md) with a key.
+- **`cancel()` releases the lock, it does not abort the call.** It exists for the promise that never settles — a request behind a dead connection, a socket the server never answers — where the button would otherwise stay disabled forever. `pending` goes back to `false` and the next call runs immediately; the abandoned promise still settles for whoever awaited it, and when it does it touches neither `pending` nor the lock the newer call now holds. In `'share'` mode a cancelled promise stops being handed to new callers. To actually stop the work, cancel an `AbortController` of your own alongside it.
 - **Unmounting mid-flight** doesn't cancel anything — the promise still settles for whoever awaited it, but no state is set afterwards. To actually abort the request, pair with [useAbortableFetch](../useAbortableFetch/README.md) or your own `AbortController`.
 
 ## Related

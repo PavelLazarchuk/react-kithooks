@@ -202,6 +202,127 @@ describe('useSingleFlight', () => {
         expect(result.current[0]).toBe(run);
     });
 
+    it('releases the lock and clears pending when cancelled mid-flight', async () => {
+        const gate = deferred<string>();
+        const fn = vi.fn(() => gate.promise);
+        const { result } = renderHook(() => useSingleFlight(fn));
+
+        act(() => {
+            void result.current[0]();
+        });
+        expect(result.current[1].pending).toBe(true);
+
+        act(() => {
+            result.current[1].cancel();
+        });
+
+        expect(result.current[1].pending).toBe(false);
+
+        act(() => {
+            void result.current[0]();
+        });
+
+        expect(fn).toHaveBeenCalledTimes(2);
+        expect(result.current[1].pending).toBe(true);
+
+        await act(async () => gate.resolve('done'));
+    });
+
+    it('still settles a cancelled call for whoever awaited it', async () => {
+        const gate = deferred<string>();
+        const { result } = renderHook(() => useSingleFlight(() => gate.promise));
+
+        let call!: Promise<string | undefined>;
+
+        act(() => {
+            call = result.current[0]();
+        });
+        act(() => {
+            result.current[1].cancel();
+        });
+
+        await act(async () => gate.resolve('late'));
+
+        await expect(call).resolves.toBe('late');
+    });
+
+    it('does not let a cancelled call clear the pending of the one that replaced it', async () => {
+        const first = deferred<string>();
+        const second = deferred<string>();
+        const fn = vi
+            .fn<() => Promise<string>>()
+            .mockReturnValueOnce(first.promise)
+            .mockReturnValueOnce(second.promise);
+        const { result } = renderHook(() => useSingleFlight(fn));
+
+        act(() => {
+            void result.current[0]();
+        });
+        act(() => {
+            result.current[1].cancel();
+        });
+        act(() => {
+            void result.current[0]();
+        });
+
+        await act(async () => first.resolve('stale'));
+
+        expect(result.current[1].pending).toBe(true);
+
+        await act(async () => second.resolve('fresh'));
+
+        expect(result.current[1].pending).toBe(false);
+    });
+
+    it('stops handing the cancelled promise to new callers in share mode', async () => {
+        const first = deferred<string>();
+        const second = deferred<string>();
+        const fn = vi
+            .fn<() => Promise<string>>()
+            .mockReturnValueOnce(first.promise)
+            .mockReturnValueOnce(second.promise);
+        const { result } = renderHook(() => useSingleFlight(fn, { mode: 'share' }));
+
+        let abandoned!: Promise<string>;
+        let fresh!: Promise<string>;
+
+        act(() => {
+            abandoned = result.current[0]();
+        });
+        act(() => {
+            result.current[1].cancel();
+        });
+        act(() => {
+            fresh = result.current[0]();
+        });
+
+        await act(async () => {
+            first.resolve('stale');
+            second.resolve('fresh');
+        });
+
+        await expect(abandoned).resolves.toBe('stale');
+        await expect(fresh).resolves.toBe('fresh');
+    });
+
+    it('is a no-op when cancel is called with nothing in flight', async () => {
+        const fn = vi.fn(() => Promise.resolve('ok'));
+        const { result, rerender } = renderHook(() => useSingleFlight(fn));
+        const cancel = result.current[1].cancel;
+
+        act(() => {
+            result.current[1].cancel();
+        });
+        expect(result.current[1].pending).toBe(false);
+
+        rerender();
+        expect(result.current[1].cancel).toBe(cancel);
+
+        await act(async () => {
+            await expect(result.current[0]()).resolves.toBe('ok');
+        });
+    });
+
     it('settles for the caller after unmount without setting state', async () => {
         const gate = deferred<string>();
         const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);

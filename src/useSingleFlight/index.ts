@@ -8,6 +8,7 @@ export interface UseSingleFlightOptions {
 
 export interface SingleFlightControls {
     pending: boolean;
+    cancel: () => void;
 }
 
 /**
@@ -33,6 +34,12 @@ export interface SingleFlightControls {
  * on to the caller and releases the lock, and so does a synchronous throw.
  * Nothing is set after unmount, but an in-flight promise still settles for
  * whoever awaited it.
+ *
+ * `cancel()` drops the lock by hand, for the call that never settles — a
+ * request behind a dead connection, a promise the server never answers. It
+ * clears `pending` and lets the next call through immediately; the abandoned
+ * promise still settles for whoever awaited it, and when it does it no longer
+ * touches `pending` or the lock a newer call now holds.
  */
 export function useSingleFlight<Args extends unknown[], T>(
     fn: (...args: Args) => Promise<T>,
@@ -51,7 +58,7 @@ export function useSingleFlight<Args extends unknown[], T>(
     const modeRef = useRef(options.mode);
     modeRef.current = options.mode;
 
-    const runningRef = useRef<Promise<T> | null>(null);
+    const runningRef = useRef<{ promise: Promise<T> } | null>(null);
     const mountedRef = useRef(true);
     const [pending, setPending] = useState(false);
 
@@ -66,7 +73,8 @@ export function useSingleFlight<Args extends unknown[], T>(
     const run = useCallback((...args: Args): Promise<T | undefined> => {
         const running = runningRef.current;
 
-        if (running) return modeRef.current === 'share' ? running : Promise.resolve(undefined);
+        if (running)
+            return modeRef.current === 'share' ? running.promise : Promise.resolve(undefined);
 
         let started: Promise<T>;
 
@@ -76,7 +84,11 @@ export function useSingleFlight<Args extends unknown[], T>(
             return Promise.reject(error);
         }
 
+        const entry: { promise: Promise<T> } = { promise: started };
+
         const release = () => {
+            if (runningRef.current !== entry) return;
+
             runningRef.current = null;
 
             if (mountedRef.current) setPending(false);
@@ -95,12 +107,21 @@ export function useSingleFlight<Args extends unknown[], T>(
             }
         );
 
-        runningRef.current = tracked;
+        entry.promise = tracked;
+        runningRef.current = entry;
 
         if (mountedRef.current) setPending(true);
 
         return tracked;
     }, []);
 
-    return [run, { pending }];
+    const cancel = useCallback(() => {
+        if (!runningRef.current) return;
+
+        runningRef.current = null;
+
+        if (mountedRef.current) setPending(false);
+    }, []);
+
+    return [run, { pending, cancel }];
 }

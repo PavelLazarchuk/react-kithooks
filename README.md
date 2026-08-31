@@ -166,8 +166,8 @@ Zero runtime dependencies, so what you import is all you ship. Every hook is mea
 | ----------------------------------------- | ------- |
 | `useIsFirstRender`                        | 75 B    |
 | `usePreviousValue`                        | 104 B   |
-| `useSingleFlight`                         | 279 B   |
 | `useMediaQuery`                           | 299 B   |
+| `useSingleFlight`                         | 320 B   |
 | `useDebouncedCallback`                    | 321 B   |
 | `usePrefersReducedMotion`                 | 332 B   |
 | `usePrefersColorScheme`                   | 356 B   |

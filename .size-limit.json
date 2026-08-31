@@ -171,7 +171,7 @@
         "name": "react-kithooks/useSingleFlight",
         "path": "dist/useSingleFlight/index.js",
         "ignore": ["react", "react-dom"],
-        "limit": "475 B",
+        "limit": "525 B",
         "gzip": true
     },
     {
@@ -383,7 +383,7 @@
         "path": "dist/index.js",
         "import": "{ useSingleFlight }",
         "ignore": ["react", "react-dom"],
-        "limit": "325 B",
+        "limit": "375 B",
         "gzip": true
     },
     {

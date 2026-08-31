@@ -41,3 +41,26 @@ jobs:
 
             - name: Tarball contents review
               run: npm run pack:verify
+
+    react18:
+        name: Tests on React 18
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 24
+                  cache: npm
+
+            - run: npm ci
+
+            - name: Install the oldest supported peers
+              run: >-
+                  npm install --no-save
+                  react@18 react-dom@18
+                  @types/react@18 @types/react-dom@18
+                  react-hook-form@7.43.0
+
+            - name: Unit tests
+              run: npm run test
