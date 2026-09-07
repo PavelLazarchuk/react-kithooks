@@ -149,4 +149,37 @@ describe('useOnlineStatus', () => {
         await result.current.recheck();
         expect(fetchMock).toHaveBeenCalledTimes(1);
     });
+
+    it('re-pings when the browser reports it is back online', async () => {
+        const fetchMock = vi.fn(() => Promise.resolve({} as Response));
+        vi.stubGlobal('fetch', fetchMock);
+
+        renderHook(() => useOnlineStatus({ pingUrl: '/api/ping' }));
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+        act(() => fireBrowserEvent('online'));
+
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    });
+
+    it('does not let a browser online event override a failing ping', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(() => Promise.reject(new Error('network unreachable')))
+        );
+        setNavigatorOnLine(false);
+        const { result } = renderHook(() => useOnlineStatus({ pingUrl: '/api/ping' }));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(result.current.isOnline).toBe(false);
+
+        setNavigatorOnLine(true);
+        await act(async () => {
+            fireBrowserEvent('online');
+            await vi.advanceTimersByTimeAsync(300);
+        });
+
+        expect(result.current.isOnline).toBe(false);
+    });
 });

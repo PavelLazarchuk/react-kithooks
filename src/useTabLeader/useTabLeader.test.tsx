@@ -309,5 +309,51 @@ describe('useTabLeader', () => {
             });
             expect(result.current.isLeader).toBe(true);
         });
+
+        it('steps down once another tab has taken the claim over, without a storage event', async () => {
+            const { result } = withoutWebLocks(() => renderHook(() => useTabLeader('room')));
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(300);
+            });
+            expect(result.current.isLeader).toBe(true);
+
+            localStorage.setItem(LOCK_KEY, JSON.stringify({ id: 'other-tab', ts: Date.now() }));
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(1_500);
+            });
+
+            expect(result.current.status).toBe('follower');
+        });
+
+        it('steps down on a bfcache restore that another tab won in the meantime', async () => {
+            const { result } = withoutWebLocks(() => renderHook(() => useTabLeader('room')));
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(300);
+            });
+            expect(result.current.isLeader).toBe(true);
+
+            act(() => window.dispatchEvent(new Event('pagehide')));
+            localStorage.setItem(LOCK_KEY, JSON.stringify({ id: 'other-tab', ts: Date.now() }));
+
+            act(() => window.dispatchEvent(new Event('pageshow')));
+
+            expect(result.current.status).toBe('follower');
+        });
+
+        it('re-claims the record it released on pagehide when nobody took over', async () => {
+            const { result } = withoutWebLocks(() => renderHook(() => useTabLeader('room')));
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(300);
+            });
+
+            act(() => window.dispatchEvent(new Event('pagehide')));
+            expect(localStorage.getItem(LOCK_KEY)).toBeNull();
+
+            act(() => window.dispatchEvent(new Event('pageshow')));
+
+            expect(result.current.isLeader).toBe(true);
+            expect(localStorage.getItem(LOCK_KEY)).not.toBeNull();
+        });
     });
 });

@@ -294,4 +294,86 @@ describe('useThrottledCallback', () => {
             expect(fn.mock.calls).toEqual([['f0a'], ['f0b'], ['f1b'], ['f2b'], ['f3b']]);
         });
     });
+
+    describe('a changed interval', () => {
+        it('re-arms the pending call against the shorter interval', () => {
+            const fn = vi.fn();
+            const { result, rerender } = renderHook(({ ms }) => useThrottledCallback(fn, ms), {
+                initialProps: { ms: 1000 },
+            });
+
+            act(() => {
+                result.current('a');
+                result.current('b');
+            });
+            expect(fn).toHaveBeenCalledTimes(1);
+
+            act(() => vi.advanceTimersByTime(100));
+            rerender({ ms: 200 });
+            expect(fn).toHaveBeenCalledTimes(1);
+
+            act(() => vi.advanceTimersByTime(100));
+            expect(fn).toHaveBeenCalledTimes(2);
+            expect(fn).toHaveBeenLastCalledWith('b');
+        });
+
+        it('fires the pending call at once when the new interval is already served', () => {
+            const fn = vi.fn();
+            const { result, rerender } = renderHook(({ ms }) => useThrottledCallback(fn, ms), {
+                initialProps: { ms: 1000 },
+            });
+
+            act(() => {
+                result.current('a');
+                result.current('b');
+            });
+            act(() => vi.advanceTimersByTime(500));
+
+            rerender({ ms: 200 });
+            expect(fn).toHaveBeenCalledTimes(2);
+            expect(fn).toHaveBeenLastCalledWith('b');
+        });
+
+        it('holds the pending call for the longer interval, counted from the call', () => {
+            const fn = vi.fn();
+            const { result, rerender } = renderHook(({ ms }) => useThrottledCallback(fn, ms), {
+                initialProps: { ms: 200 },
+            });
+
+            act(() => {
+                result.current('a');
+                result.current('b');
+            });
+            act(() => vi.advanceTimersByTime(100));
+
+            rerender({ ms: 1000 });
+
+            act(() => vi.advanceTimersByTime(100));
+            expect(fn).toHaveBeenCalledTimes(1);
+
+            act(() => vi.advanceTimersByTime(800));
+            expect(fn).toHaveBeenCalledTimes(2);
+            expect(fn).toHaveBeenLastCalledWith('b');
+        });
+
+        it('re-arms the pending call on the next frame when the interval becomes a frame', () => {
+            const fn = vi.fn();
+            const { result, rerender } = renderHook(
+                ({ ms }: { ms: number | 'frame' }) => useThrottledCallback(fn, ms),
+                { initialProps: { ms: 1000 as number | 'frame' } }
+            );
+
+            act(() => {
+                result.current('a');
+                result.current('b');
+            });
+            expect(fn).toHaveBeenCalledTimes(1);
+
+            rerender({ ms: 'frame' });
+            act(() => vi.advanceTimersToNextFrame());
+
+            expect(fn).toHaveBeenCalledTimes(2);
+            expect(fn).toHaveBeenLastCalledWith('b');
+        });
+    });
 });

@@ -1,0 +1,12 @@
+---
+'react-kithooks': patch
+---
+
+fix(useThrottledCallback, useThrottledValue, usePolling, useTabLeader, useScrollAnchor, useOnlineStatus): re-arm on a changed interval, and close three ways a hook could get stuck on stale state
+
+- `useThrottledCallback`/`useThrottledValue`: a changed `interval` now re-arms the window already open, instead of taking effect only from the next one. Shortening it past the time already served fires the pending call at once; lengthening it holds the call for the new interval counted from when the window opened. `useDebouncedCallback` and `useDebouncedValue` already did this — the four now agree.
+- `usePolling`: a poller that rejects with an `AbortError` of its own — a fetch behind an internal timeout, a request cancelled by the caller's own controller — no longer stops the loop dead. That rejection was swallowed, leaving `isFetching` stuck on `true` with no next tick ever scheduled; it is now reported like any other failure and the next run is scheduled. Aborts that come from the hook itself are still filtered out by the run-id check, as before.
+- `usePolling`: a changed `intervalMs` (or `backoff`/`maxBackoffMs`) now re-arms the tick already scheduled, measured from the last run, rather than waiting out the old interval once more.
+- `useTabLeader` (`localStorage` fallback): a leader now verifies on every heartbeat that the claim record is still its own, and steps down when another tab has taken it over — a same-tab `localStorage` write raises no `storage` event, so a takeover during a suspended interval left two tabs both believing they were leader. The tab also re-checks on `pageshow`: `pagehide` releases the claim, so a bfcache restore came back as a leader with no claim at all, and now either re-claims the record or demotes itself if another tab won in the meantime.
+- `useScrollAnchor`: the container itself is now observed for resize, not only its children. A viewport that shrinks under a pinned-to-bottom list — a mobile keyboard opening, a panel expanding, a window resize — left the list drifted away from the bottom until the next mutation.
+- `useOnlineStatus`: with `pingUrl` set, a browser `online` event now triggers a re-verification ping instead of being trusted on its own. The event reports "the interface is up", which is exactly the false positive this hook exists to correct, and until the next scheduled ping (up to `pingIntervalMs` later) the hook reported a connection that isn't there.

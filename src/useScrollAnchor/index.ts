@@ -259,6 +259,7 @@ export function useScrollAnchor<T extends HTMLElement = HTMLDivElement>(
 
             if (optsRef.current.observeResize !== false && typeof ResizeObserver !== 'undefined') {
                 resizeObserver = new ResizeObserver(handleContentResize);
+                resizeObserver.observe(node);
                 syncResizeTargets();
                 const childSyncObserver = new MutationObserver(syncResizeTargets);
                 childSyncObserver.observe(node, { childList: true });

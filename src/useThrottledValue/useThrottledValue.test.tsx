@@ -230,4 +230,55 @@ describe('useThrottledValue', () => {
             expect(result.current).toBe('d');
         });
     });
+
+    describe('a changed interval', () => {
+        function setupWithInterval(initial: string, interval: number) {
+            return renderHook(({ value, ms }) => useThrottledValue(value, ms), {
+                initialProps: { value: initial, ms: interval },
+            });
+        }
+
+        it('re-arms the open window against the shorter interval', () => {
+            const { result, rerender } = setupWithInterval('a', 1000);
+
+            rerender({ value: 'b', ms: 1000 });
+            rerender({ value: 'c', ms: 1000 });
+            expect(result.current).toBe('b');
+
+            act(() => vi.advanceTimersByTime(100));
+            rerender({ value: 'c', ms: 200 });
+            expect(result.current).toBe('b');
+
+            act(() => vi.advanceTimersByTime(100));
+            expect(result.current).toBe('c');
+        });
+
+        it('publishes at once when the new interval is already served', () => {
+            const { result, rerender } = setupWithInterval('a', 1000);
+
+            rerender({ value: 'b', ms: 1000 });
+            rerender({ value: 'c', ms: 1000 });
+            act(() => vi.advanceTimersByTime(500));
+
+            rerender({ value: 'c', ms: 200 });
+            expect(result.current).toBe('c');
+        });
+
+        it('re-arms the open window on the next frame when the interval becomes a frame', () => {
+            const { result, rerender } = renderHook(
+                ({ value, ms }: { value: string; ms: number | 'frame' }) =>
+                    useThrottledValue(value, ms),
+                { initialProps: { value: 'a', ms: 1000 as number | 'frame' } }
+            );
+
+            rerender({ value: 'b', ms: 1000 });
+            rerender({ value: 'c', ms: 1000 });
+            expect(result.current).toBe('b');
+
+            rerender({ value: 'c', ms: 'frame' });
+            act(() => vi.advanceTimersToNextFrame());
+
+            expect(result.current).toBe('c');
+        });
+    });
 });

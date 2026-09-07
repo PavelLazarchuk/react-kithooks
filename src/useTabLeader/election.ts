@@ -133,9 +133,7 @@ function startStorageElection(key: string, callbacks: ElectionCallbacks): Electi
     const startHeartbeat = () => {
         if (heartbeatTimer) return;
 
-        heartbeatTimer = setInterval(() => {
-            if (status === 'leader') writeRecord(storageKey, { id, ts: Date.now() });
-        }, HEARTBEAT_MS);
+        heartbeatTimer = setInterval(() => verifyClaim(), HEARTBEAT_MS);
     };
 
     const stopHeartbeat = () => {
@@ -176,6 +174,22 @@ function startStorageElection(key: string, callbacks: ElectionCallbacks): Electi
         else setStatus('follower');
     };
 
+    const verifyClaim = () => {
+        if (stopped || status !== 'leader') return;
+
+        const record = readRecord(storageKey);
+
+        if (record && record.id !== id) {
+            stopHeartbeat();
+            setStatus('follower');
+            evaluate();
+
+            return;
+        }
+
+        writeRecord(storageKey, { id, ts: Date.now() });
+    };
+
     const handleStorage = (event: StorageEvent) => {
         if (event.key !== null && event.key !== storageKey) return;
 
@@ -186,8 +200,14 @@ function startStorageElection(key: string, callbacks: ElectionCallbacks): Electi
         clearRecord(storageKey, id);
     };
 
+    const handlePageShow = () => {
+        if (status === 'leader') verifyClaim();
+        else evaluate();
+    };
+
     window.addEventListener('storage', handleStorage);
     window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('pageshow', handlePageShow);
 
     const startTimer = setTimeout(evaluate, Math.random() * SETTLE_MS);
     const pollTimer = setInterval(evaluate, HEARTBEAT_MS);
@@ -202,6 +222,7 @@ function startStorageElection(key: string, callbacks: ElectionCallbacks): Electi
             stopHeartbeat();
             window.removeEventListener('storage', handleStorage);
             window.removeEventListener('pagehide', handlePageHide);
+            window.removeEventListener('pageshow', handlePageShow);
 
             clearRecord(storageKey, id);
         },

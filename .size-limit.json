@@ -185,14 +185,14 @@
         "name": "react-kithooks/useThrottledCallback",
         "path": "dist/useThrottledCallback/index.js",
         "ignore": ["react", "react-dom"],
-        "limit": "775 B",
+        "limit": "850 B",
         "gzip": true
     },
     {
         "name": "react-kithooks/useThrottledValue",
         "path": "dist/useThrottledValue/index.js",
         "ignore": ["react", "react-dom"],
-        "limit": "750 B",
+        "limit": "825 B",
         "gzip": true
     },
     {
@@ -399,7 +399,7 @@
         "path": "dist/index.js",
         "import": "{ useThrottledCallback }",
         "ignore": ["react", "react-dom"],
-        "limit": "600 B",
+        "limit": "675 B",
         "gzip": true
     },
     {
@@ -407,7 +407,7 @@
         "path": "dist/index.js",
         "import": "{ useThrottledValue }",
         "ignore": ["react", "react-dom"],
-        "limit": "575 B",
+        "limit": "650 B",
         "gzip": true
     }
 ]

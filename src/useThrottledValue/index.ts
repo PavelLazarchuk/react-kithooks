@@ -57,6 +57,7 @@ export function useThrottledValue<T>(
     const leadingRef = useRef(leading);
     leadingRef.current = leading;
     const closeWindowRef = useRef<(() => void) | null>(null);
+    const windowStartRef = useRef(0);
 
     const commands = useMemo(() => {
         const closeWindow = () => {
@@ -64,15 +65,22 @@ export function useThrottledValue<T>(
             closeWindowRef.current = null;
         };
 
+        function endWindow(): void {
+            closeWindowRef.current = null;
+
+            if (cancelledRef.current) return;
+            if (Object.is(throttledRef.current, valueRef.current)) return;
+
+            publish();
+        }
+
+        function armWindow(delay: ThrottleInterval): void {
+            closeWindowRef.current = scheduleThrottleWindow(delay, endWindow);
+        }
+
         function openWindow(): void {
-            closeWindowRef.current = scheduleThrottleWindow(intervalRef.current, () => {
-                closeWindowRef.current = null;
-
-                if (cancelledRef.current) return;
-                if (Object.is(throttledRef.current, valueRef.current)) return;
-
-                publish();
-            });
+            windowStartRef.current = Date.now();
+            armWindow(intervalRef.current);
         }
 
         function publish(): void {
@@ -95,6 +103,24 @@ export function useThrottledValue<T>(
             uncancel,
             isWindowOpen: () => closeWindowRef.current !== null,
             dispose: closeWindow,
+            rearm: () => {
+                if (closeWindowRef.current === null) return;
+
+                closeWindow();
+
+                const interval = intervalRef.current;
+
+                if (interval === 'frame') {
+                    armWindow(interval);
+
+                    return;
+                }
+
+                const remaining = windowStartRef.current + interval - Date.now();
+
+                if (remaining > 0) armWindow(remaining);
+                else endWindow();
+            },
             flush: () => {
                 if (Object.is(throttledRef.current, valueRef.current)) return;
 
@@ -123,6 +149,10 @@ export function useThrottledValue<T>(
         if (leadingRef.current) commands.publish();
         else commands.openWindow();
     }, [value, commands]);
+
+    useEffect(() => {
+        commands.rearm();
+    }, [interval, commands]);
 
     useEffect(() => commands.dispose, [commands]);
 

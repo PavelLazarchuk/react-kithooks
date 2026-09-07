@@ -54,17 +54,26 @@ export function useThrottledCallback<Args extends unknown[]>(
 
     const argsRef = useRef<Args | null>(null);
     const closeWindowRef = useRef<(() => void) | null>(null);
+    const windowStartRef = useRef(0);
+    const rearmRef = useRef<() => void>(() => undefined);
 
     const throttled = useMemo<ThrottledCallback<Args>>(() => {
+        function endWindow(): void {
+            closeWindowRef.current = null;
+
+            if (argsRef.current === null) return;
+
+            if (trailingRef.current) invoke();
+            else argsRef.current = null;
+        }
+
+        function armWindow(delay: ThrottleInterval): void {
+            closeWindowRef.current = scheduleThrottleWindow(delay, endWindow);
+        }
+
         function openWindow(): void {
-            closeWindowRef.current = scheduleThrottleWindow(intervalRef.current, () => {
-                closeWindowRef.current = null;
-
-                if (argsRef.current === null) return;
-
-                if (trailingRef.current) invoke();
-                else argsRef.current = null;
-            });
+            windowStartRef.current = Date.now();
+            armWindow(intervalRef.current);
         }
 
         function invoke(): void {
@@ -80,6 +89,25 @@ export function useThrottledCallback<Args extends unknown[]>(
             closeWindowRef.current?.();
             closeWindowRef.current = null;
         }
+
+        rearmRef.current = () => {
+            if (closeWindowRef.current === null) return;
+
+            closeWindow();
+
+            const interval = intervalRef.current;
+
+            if (interval === 'frame') {
+                armWindow(interval);
+
+                return;
+            }
+
+            const remaining = windowStartRef.current + interval - Date.now();
+
+            if (remaining > 0) armWindow(remaining);
+            else endWindow();
+        };
 
         const call = (...args: Args) => {
             if (closeWindowRef.current !== null) {
@@ -108,6 +136,10 @@ export function useThrottledCallback<Args extends unknown[]>(
             isPending: () => argsRef.current !== null,
         });
     }, []);
+
+    useEffect(() => {
+        rearmRef.current();
+    }, [interval]);
 
     useEffect(() => () => throttled.cancel(), [throttled]);
 

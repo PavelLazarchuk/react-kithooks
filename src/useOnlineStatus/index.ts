@@ -72,10 +72,12 @@ export function useOnlineStatus(options: UseOnlineStatusOptions = {}): UseOnline
         runIfVisible();
         const interval = setInterval(runIfVisible, pingIntervalMs);
         document.addEventListener('visibilitychange', runIfVisible);
+        window.addEventListener('online', runIfVisible);
 
         return () => {
             clearInterval(interval);
             document.removeEventListener('visibilitychange', runIfVisible);
+            window.removeEventListener('online', runIfVisible);
         };
     }, [pingUrl, pingIntervalMs]);
 

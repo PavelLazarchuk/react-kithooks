@@ -405,4 +405,39 @@ describe('useScrollAnchor', () => {
         });
         expect(result.current.isAtBottom).toBe(true);
     });
+
+    it('re-pins to the bottom when the container itself resizes', () => {
+        const observed: Element[] = [];
+        const resizeCallbacks: ResizeObserverCallback[] = [];
+        class StubResizeObserver {
+            constructor(callback: ResizeObserverCallback) {
+                resizeCallbacks.push(callback);
+            }
+            observe(target: Element) {
+                observed.push(target);
+            }
+            unobserve() {}
+            disconnect() {}
+        }
+        vi.stubGlobal('ResizeObserver', StubResizeObserver);
+
+        try {
+            const box = makeScrollable();
+            const { result } = renderHook(() => useScrollAnchor());
+            act(() => result.current.ref(box.el));
+
+            expect(observed).toContain(box.el);
+            expect(box.scrollTop()).toBe(500);
+
+            Object.defineProperty(box.el, 'clientHeight', { get: () => 300, configurable: true });
+            act(() => {
+                for (const callback of resizeCallbacks) callback([], {} as ResizeObserver);
+            });
+
+            expect(box.scrollTop()).toBe(700);
+            expect(result.current.isAtBottom).toBe(true);
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
 });

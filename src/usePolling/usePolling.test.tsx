@@ -390,4 +390,52 @@ describe('usePolling', () => {
         expect(warn).toHaveBeenCalledTimes(1);
         expect(String(warn.mock.calls[0]?.[0])).toContain('usePolling');
     });
+
+    it('keeps polling after the poller rejects with an AbortError of its own', async () => {
+        const poller = vi
+            .fn<(signal: AbortSignal) => Promise<string>>()
+            .mockRejectedValueOnce(new DOMException('timed out', 'AbortError'))
+            .mockResolvedValue('recovered');
+
+        const { result } = renderHook(() =>
+            usePolling(poller, [], { intervalMs: 1000, backoff: false })
+        );
+        await tick();
+
+        expect(result.current.isFetching).toBe(false);
+        expect(result.current.status).toBe('error');
+
+        await tick(1000);
+        expect(poller).toHaveBeenCalledTimes(2);
+        expect(result.current.data).toBe('recovered');
+    });
+
+    it('re-arms the scheduled tick against a shortened intervalMs', async () => {
+        const poller = vi.fn(async () => 'value');
+        const { rerender } = renderHook(({ ms }) => usePolling(poller, [], { intervalMs: ms }), {
+            initialProps: { ms: 10_000 },
+        });
+        await tick();
+        expect(poller).toHaveBeenCalledTimes(1);
+
+        await tick(1000);
+        rerender({ ms: 2000 });
+
+        await tick(1000);
+        expect(poller).toHaveBeenCalledTimes(2);
+    });
+
+    it('runs the pending tick at once when the shortened intervalMs is already served', async () => {
+        const poller = vi.fn(async () => 'value');
+        const { rerender } = renderHook(({ ms }) => usePolling(poller, [], { intervalMs: ms }), {
+            initialProps: { ms: 10_000 },
+        });
+        await tick();
+
+        await tick(5000);
+        rerender({ ms: 2000 });
+        await tick();
+
+        expect(poller).toHaveBeenCalledTimes(2);
+    });
 });

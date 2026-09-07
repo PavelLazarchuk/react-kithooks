@@ -1,7 +1,6 @@
 import type { DependencyList } from 'react';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
-import { errorName } from '../internal/errorName';
 import { getOnlineStatusStore } from '../internal/onlineStatusStore';
 import { useDepsLengthWarning } from '../internal/useDepsLengthWarning';
 
@@ -178,7 +177,6 @@ export function usePolling<T>(
             },
             error => {
                 if (runId !== runIdRef.current) return;
-                if (errorName(error) === 'AbortError') return;
 
                 failuresRef.current += 1;
                 setState(prev => ({
@@ -237,6 +235,12 @@ export function usePolling<T>(
 
         return stop;
     }, [active, resume, stop, ...deps]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
+        if (!activeRef.current || timerRef.current === null) return;
+
+        resume();
+    }, [intervalMs, backoff, maxBackoffMs, resume]);
 
     return {
         data: state.data,
