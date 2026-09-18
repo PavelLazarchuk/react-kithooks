@@ -22,6 +22,20 @@ export type {
 export { useFocusTrap } from './useFocusTrap';
 export type { UseFocusTrapOptions, UseFocusTrapReturn, FocusTarget } from './useFocusTrap';
 
+export { useLockBodyScroll } from './useLockBodyScroll';
+export type {
+    UseLockBodyScrollOptions,
+    UseLockBodyScrollReturn,
+    LockStrategy,
+} from './useLockBodyScroll';
+
+export { useUnsavedChanges } from './useUnsavedChanges';
+export type {
+    UseUnsavedChangesOptions,
+    UseUnsavedChangesReturn,
+    LeavePrompt,
+} from './useUnsavedChanges';
+
 export { useFormCrashRecovery } from './useFormCrashRecovery';
 export type {
     UseFormCrashRecoveryOptions,

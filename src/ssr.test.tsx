@@ -20,6 +20,7 @@ import {
     useIsFirstRender,
     useKeyboardScope,
     useLocalStorage,
+    useLockBodyScroll,
     useMediaQuery,
     useOnlineStatus,
     usePermission,
@@ -33,6 +34,7 @@ import {
     useTabLeader,
     useThrottledCallback,
     useThrottledValue,
+    useUnsavedChanges,
 } from './index';
 
 function ssr<T>(useHook: () => T): T {
@@ -94,6 +96,20 @@ describe('SSR', () => {
 
             expect(trap.isActive).toBe(false);
             expect(typeof trap.ref).toBe('function');
+        });
+
+        it('useLockBodyScroll locks nothing', () => {
+            const result = ssr(() => useLockBodyScroll(true));
+
+            expect(result.isLocked).toBe(false);
+            expect(typeof result.ref).toBe('function');
+        });
+
+        it('useUnsavedChanges lets the navigation through', () => {
+            const result = ssr(() => useUnsavedChanges(true));
+
+            expect(result.isDirty).toBe(true);
+            expect(result.confirmLeave()).toBe(true);
         });
 
         it('useMediaQuery returns serverFallback', () => {

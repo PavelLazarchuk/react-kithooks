@@ -80,6 +80,7 @@ import { useScrollAnchor, useLocalStorage } from 'react-kithooks';
 | [useScrollAnchor](docs/useScrollAnchor/README.md)                 | Viewport jump when prepending to a scrollable list, and stick-to-bottom that respects the reader. Element anchoring, so async content above doesn't break it.                          |
 | [useKeyboardScope](docs/useKeyboardScope/README.md)               | Layered shortcuts: the top-most scope suspends the ones below, and Escape only ever reaches one layer.                                                                                 |
 | [useFocusTrap](docs/useFocusTrap/README.md)                       | Tab walking out of an open dialog, and focus falling to `<body>` when it closes. Sentinel-based wrapping that survives content loading in, and a stack so layered dialogs don't fight. |
+| [useLockBodyScroll](docs/useLockBodyScroll/README.md)             | The page scrolling behind an open dialog: iOS Safari ignoring `overflow: hidden`, the layout jumping by a scrollbar's width, and two dialogs unlocking each other's lock.              |
 | [useMediaQuery](docs/useMediaQuery/README.md)                     | `matchMedia` that neither throws on the server nor mismatches on hydration.                                                                                                            |
 | [useBreakpoint](docs/useBreakpoint/README.md)                     | The current breakpoint name, typed from your own scale. Re-renders when the viewport crosses one — not on every pixel of a `resize`, and never off-by-a-scrollbar from your CSS.       |
 | [usePrefersColorScheme](docs/usePrefersColorScheme/README.md)     | The system light/dark preference, as the default for a theme rather than a hydration mismatch.                                                                                         |
@@ -96,13 +97,14 @@ import { useScrollAnchor, useLocalStorage } from 'react-kithooks';
 
 ### Storage & persistence
 
-| Hook                                                            | What it fixes                                                                                                                                                                   |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [useLocalStorage](docs/useLocalStorage/README.md)               | `useState` backed by `localStorage`, synced across tabs **and** across instances in the current tab (`syncTabs: false` to opt out), with parse/quota failures handled.          |
-| [useSessionStorage](docs/useSessionStorage/README.md)           | Same API, tab-scoped lifetime — state that must not outlive the tab.                                                                                                            |
-| [useIndexedDB](docs/useIndexedDB/README.md)                     | `useState` backed by IndexedDB for large or structured data, with on-demand stores and cross-tab sync over `BroadcastChannel`.                                                  |
-| [useIndexedDBCollection](docs/useIndexedDBCollection/README.md) | The other half of IndexedDB: cursor reads with `limit`/`offset`, queries by a declared index, and batched all-or-nothing writes — for stores too large to read a key at a time. |
-| [useFormCrashRecovery](docs/useFormCrashRecovery/README.md)     | Form drafts that survive a crash: structured clone (Dates and Files intact), TTL, versioning, field exclusion, conflict handling. Never auto-restores.                          |
+| Hook                                                            | What it fixes                                                                                                                                                                                 |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [useLocalStorage](docs/useLocalStorage/README.md)               | `useState` backed by `localStorage`, synced across tabs **and** across instances in the current tab (`syncTabs: false` to opt out), with parse/quota failures handled.                        |
+| [useSessionStorage](docs/useSessionStorage/README.md)           | Same API, tab-scoped lifetime — state that must not outlive the tab.                                                                                                                          |
+| [useIndexedDB](docs/useIndexedDB/README.md)                     | `useState` backed by IndexedDB for large or structured data, with on-demand stores and cross-tab sync over `BroadcastChannel`.                                                                |
+| [useIndexedDBCollection](docs/useIndexedDBCollection/README.md) | The other half of IndexedDB: cursor reads with `limit`/`offset`, queries by a declared index, and batched all-or-nothing writes — for stores too large to read a key at a time.               |
+| [useFormCrashRecovery](docs/useFormCrashRecovery/README.md)     | Form drafts that survive a crash: structured clone (Dates and Files intact), TTL, versioning, field exclusion, conflict handling. Never auto-restores.                                        |
+| [useUnsavedChanges](docs/useUnsavedChanges/README.md)           | The warning before leaving a dirty form — attached only while it is dirty, so the page stays in the back/forward cache, with `confirmLeave()` for the route change `beforeunload` never sees. |
 
 ### Async
 
@@ -133,6 +135,7 @@ All hooks touch `window`/`document`/`navigator` only inside effects or callback 
 | `useScrollAnchor`                       | `isAtBottom: true`                                                       |
 | `useKeyboardScope`                      | `isTopMost: false`                                                       |
 | `useFocusTrap`                          | `isActive: false`                                                        |
+| `useLockBodyScroll`                     | `isLocked: false`                                                        |
 | `useMediaQuery`                         | `serverFallback` (default `false`)                                       |
 | `useBreakpoint`                         | `serverFallback` (default: the `base` name)                              |
 | `usePrefersColorScheme`                 | `serverFallback` (default `'light'`)                                     |
@@ -145,6 +148,7 @@ All hooks touch `window`/`document`/`navigator` only inside effects or callback 
 | `useIndexedDB`                          | `initialValue`, `status: 'loading'`                                      |
 | `useIndexedDBCollection`                | `{ items: [], records: [], status: 'loading' }`                          |
 | `useFormCrashRecovery`                  | `{ recovered: null, status: 'idle' }`                                    |
+| `useUnsavedChanges`                     | `confirmLeave()` returns `true`                                          |
 | `useAbortableFetch`                     | `status: 'idle'`, `isFetching: false`                                    |
 | `useAsyncQueue`                         | `{ status: 'idle', pending: 0, running: 0, queued: 0, isPaused: false }` |
 | `useSingleFlight`                       | `pending: false`                                                         |
@@ -167,6 +171,7 @@ Zero runtime dependencies, so what you import is all you ship. Every hook is mea
 | `useIsFirstRender`                        | 75 B    |
 | `usePreviousValue`                        | 104 B   |
 | `useMediaQuery`                           | 299 B   |
+| `useUnsavedChanges`                       | 302 B   |
 | `useSingleFlight`                         | 320 B   |
 | `useDebouncedCallback`                    | 321 B   |
 | `usePrefersReducedMotion`                 | 332 B   |
@@ -177,6 +182,7 @@ Zero runtime dependencies, so what you import is all you ship. Every hook is mea
 | `useBreakpoint`                           | 759 B   |
 | `useOnlineStatus`                         | 779 B   |
 | `useAbortableFetch`                       | 790 B   |
+| `useLockBodyScroll`                       | 907 B   |
 | `useLocalStorage` / `useSessionStorage`   | 986 B   |
 | `useIdle`                                 | 1.28 kB |
 | `useScrollAnchor`                         | 1.29 kB |
@@ -190,7 +196,7 @@ Zero runtime dependencies, so what you import is all you ship. Every hook is mea
 | `useIndexedDBCollection`                  | 3.24 kB |
 | `useFormCrashRecovery`                    | 3.77 kB |
 | `react-kithooks/useFormCrashRecovery/rhf` | 4.15 kB |
-| the entire kit, every hook from the root  | 18.5 kB |
+| the entire kit, every hook from the root  | 19.5 kB |
 
 Each hook also has its own subpath (`react-kithooks/useIdle`); importing it directly costs 100–200 B more than the tree-shaken root import, because the subpath file carries its own module wrapper. Both are measured in CI.
 

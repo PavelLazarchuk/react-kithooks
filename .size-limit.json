@@ -3,14 +3,14 @@
         "name": "react-kithooks",
         "path": "dist/index.js",
         "ignore": ["react", "react-dom"],
-        "limit": "20.05 kB",
+        "limit": "20.6 kB",
         "gzip": true
     },
     {
         "name": "react-kithooks (cjs)",
         "path": "dist/index.cjs",
         "ignore": ["react", "react-dom"],
-        "limit": "19.75 kB",
+        "limit": "20.2 kB",
         "gzip": true
     },
     {
@@ -200,6 +200,20 @@
         "path": "dist/useFormCrashRecovery/rhf.js",
         "ignore": ["react", "react-dom", "react-hook-form"],
         "limit": "4.6 kB",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/useLockBodyScroll",
+        "path": "dist/useLockBodyScroll/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "1.1 kB",
+        "gzip": true
+    },
+    {
+        "name": "react-kithooks/useUnsavedChanges",
+        "path": "dist/useUnsavedChanges/index.js",
+        "ignore": ["react", "react-dom"],
+        "limit": "500 B",
         "gzip": true
     },
     {
@@ -408,6 +422,22 @@
         "import": "{ useThrottledValue }",
         "ignore": ["react", "react-dom"],
         "limit": "650 B",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { useLockBodyScroll } only",
+        "path": "dist/index.js",
+        "import": "{ useLockBodyScroll }",
+        "ignore": ["react", "react-dom"],
+        "limit": "950 B",
+        "gzip": true
+    },
+    {
+        "name": "tree-shaking: { useUnsavedChanges } only",
+        "path": "dist/index.js",
+        "import": "{ useUnsavedChanges }",
+        "ignore": ["react", "react-dom"],
+        "limit": "325 B",
         "gzip": true
     }
 ]
