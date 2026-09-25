@@ -182,8 +182,8 @@ Zero runtime dependencies, so what you import is all you ship. Every hook is mea
 | `useBreakpoint`                           | 759 B   |
 | `useOnlineStatus`                         | 779 B   |
 | `useAbortableFetch`                       | 790 B   |
-| `useLockBodyScroll`                       | 907 B   |
 | `useLocalStorage` / `useSessionStorage`   | 986 B   |
+| `useLockBodyScroll`                       | 1.03 kB |
 | `useIdle`                                 | 1.28 kB |
 | `useScrollAnchor`                         | 1.29 kB |
 | `useTabLeader`                            | 1.41 kB |

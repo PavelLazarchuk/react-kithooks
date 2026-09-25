@@ -24,7 +24,7 @@ useEffect(() => {
 
 Two things go wrong:
 
-- **It costs the bfcache.** Chrome will not put a page with a `beforeunload` listener into the back/forward cache, so every Back button in the session reloads the whole app instead of restoring it in place — a permanent cost paid for a dialog the user will probably never see. Attaching the listener only while the form is actually dirty gives that back.
+- **It costs the bfcache.** A `beforeunload` listener is one of the things that can keep a page out of the back/forward cache — browsers have treated it as a blocker, and web.dev still advises adding one only while it is needed — so a Back button can reload the whole app instead of restoring it in place, a cost paid for a dialog the user will probably never see. Attaching the listener only while the form is actually dirty gives that back.
 - **It never fires on a route change.** `beforeunload` is about leaving the _document_. A client-side navigation is not one, so the SPA case — the common case — is not covered at all, and the user loses the draft with no warning.
 
 This hook attaches while `isDirty` and hands you `confirmLeave()` for the router half.

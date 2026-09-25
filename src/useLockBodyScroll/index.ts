@@ -31,12 +31,13 @@ export function useLockBodyScroll<T extends HTMLElement = HTMLDivElement>(
     }, []);
 
     const target = inert ? container : null;
+    const doc = container?.ownerDocument ?? (typeof document === 'undefined' ? null : document);
 
     useEffect(() => {
-        if (!locked || typeof document === 'undefined') return;
+        if (!locked || !doc) return;
         if (inert && !target) return;
 
-        const handle = lockScroll(document, { strategy, gutter, inert, container: target });
+        const handle = lockScroll(doc, { strategy, gutter, inert, container: target });
 
         setIsLocked(true);
 
@@ -44,7 +45,7 @@ export function useLockBodyScroll<T extends HTMLElement = HTMLDivElement>(
             handle.release();
             setIsLocked(false);
         };
-    }, [locked, strategy, gutter, inert, target]);
+    }, [locked, strategy, gutter, inert, target, doc]);
 
     return { ref, isLocked };
 }

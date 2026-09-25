@@ -74,9 +74,9 @@ function useLockBodyScroll<T extends HTMLElement = HTMLDivElement>(
 
 ## Notes
 
-- The `'fixed'` strategy pins `<body>` at `top: -scrollY` and scrolls back to exactly where the reader was on release, so the page does not jump to the top when the dialog closes.
-- Locks are counted per `document`, so an iframe or a portal into another document gets its own stack.
-- `inert` is applied per hook, not per stack: a second dialog marks the first one inert, and each release takes back only the attributes it set — an element that was already `inert` before is left alone.
+- The `'fixed'` strategy pins `<body>` at `top: -scrollY` and scrolls back to exactly where the reader was on release, so the page does not jump to the top when the dialog closes. That scroll is instant even under `scroll-behavior: smooth`, which would otherwise animate the page down from the top.
+- Locks are counted per `document` — the one the `ref`'s node lives in, or the page's own when no `ref` is attached — so a portal into an iframe locks that iframe, not the page around it.
+- `inert` is applied per hook, not per stack: a second dialog marks the first one inert. Each marking is counted, so an element two dialogs both marked stays `inert` until both have closed, in any order — and an element that was already `inert` before is left alone.
 - Compose with [useFocusTrap](../useFocusTrap/README.md) for Tab and [useKeyboardScope](../useKeyboardScope/README.md) for Escape. This hook only holds the page still.
 - `inert` needs Chrome 102+, Safari 15.5+ or Firefox 112+. In older browsers the attribute is ignored and the scroll lock still works.
 

@@ -1,4 +1,5 @@
 import { act, cleanup, render } from '@testing-library/react';
+import { createPortal } from 'react-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useLockBodyScroll } from './index';
@@ -174,6 +175,85 @@ describe('useLockBodyScroll', () => {
 
         sibling.remove();
         already.remove();
+    });
+
+    it('keeps the page inert until the last of two dialogs closes, in any order', () => {
+        const page = document.createElement('main');
+
+        document.body.append(page);
+
+        const first = render(<Dialog options={{ inert: true }} />);
+        const second = render(<Dialog options={{ inert: true }} />);
+
+        expect(page.hasAttribute('inert')).toBe(true);
+
+        first.unmount();
+
+        expect(page.hasAttribute('inert')).toBe(true);
+
+        second.unmount();
+
+        expect(page.hasAttribute('inert')).toBe(false);
+
+        page.remove();
+    });
+
+    it('locks the document the container was portaled into, not the one running the hook', () => {
+        const frame = document.createElement('iframe');
+
+        document.body.append(frame);
+
+        const inner = frame.contentDocument!;
+        const host = inner.createElement('div');
+        const page = inner.createElement('div');
+
+        inner.body.append(host, page);
+
+        function Framed({ options }: { options?: UseLockBodyScrollOptions }) {
+            const { ref } = useLockBodyScroll<HTMLDivElement>(true, options);
+
+            return createPortal(<div ref={ref} />, host);
+        }
+
+        const view = render(<Framed options={{ inert: true }} />);
+
+        expect(inner.body.style.overflow).toBe('hidden');
+        expect(page.hasAttribute('inert')).toBe(true);
+        expect(document.body.style.overflow).toBe('');
+
+        act(() => view.rerender(<Framed />));
+
+        expect(inner.body.style.overflow).toBe('hidden');
+        expect(page.hasAttribute('inert')).toBe(false);
+        expect(document.body.style.overflow).toBe('');
+
+        view.unmount();
+
+        expect(inner.body.style.overflow).toBe('');
+
+        frame.remove();
+    });
+
+    it('scrolls back instantly even when the page asks for smooth scrolling', () => {
+        const root = document.documentElement.style;
+        const behaviors: string[] = [];
+
+        Object.defineProperty(window, 'scrollY', { configurable: true, value: 240 });
+        Object.defineProperty(window, 'scrollTo', {
+            configurable: true,
+            value: vi.fn(() => behaviors.push(root.scrollBehavior)),
+        });
+
+        root.scrollBehavior = 'smooth';
+
+        const view = render(<Dialog options={{ strategy: 'fixed' }} />);
+
+        view.unmount();
+
+        expect(behaviors).toEqual(['auto']);
+        expect(root.scrollBehavior).toBe('smooth');
+
+        root.scrollBehavior = '';
     });
 
     it('locks once on mount, not once per render', () => {

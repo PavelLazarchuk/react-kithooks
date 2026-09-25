@@ -14,6 +14,7 @@ export interface LockHandle {
 interface DocumentState {
     locks: object[];
     restore: (() => void) | null;
+    inert: Map<Element, number>;
 }
 
 const states = new WeakMap<Document, DocumentState>();
@@ -32,7 +33,7 @@ function stateOf(doc: Document): DocumentState {
     let state = states.get(doc);
 
     if (!state) {
-        state = { locks: [], restore: null };
+        state = { locks: [], restore: null, inert: new Map() };
         states.set(doc, state);
     }
 
@@ -60,20 +61,24 @@ function snapshot(body: HTMLElement): () => void {
     };
 }
 
-function markInert(container: HTMLElement): HTMLElement[] {
-    const marked: HTMLElement[] = [];
+function markInert(container: HTMLElement, counts: Map<Element, number>): Element[] {
+    const marked: Element[] = [];
     const body = container.ownerDocument.body;
 
     if (container === body) return marked;
 
-    let node: HTMLElement = container;
+    let node: Element = container;
 
     while (node.parentElement) {
         for (const sibling of node.parentElement.children) {
-            if (sibling === node || !(sibling instanceof HTMLElement)) continue;
-            if (sibling.hasAttribute('inert')) continue;
+            if (sibling === node) continue;
 
-            sibling.setAttribute('inert', '');
+            const count = counts.get(sibling) ?? 0;
+
+            if (!count && sibling.hasAttribute('inert')) continue;
+            if (!count) sibling.setAttribute('inert', '');
+
+            counts.set(sibling, count + 1);
             marked.push(sibling);
         }
 
@@ -83,6 +88,29 @@ function markInert(container: HTMLElement): HTMLElement[] {
     }
 
     return marked;
+}
+
+function unmarkInert(marked: Element[], counts: Map<Element, number>): void {
+    for (const element of marked) {
+        const count = (counts.get(element) ?? 1) - 1;
+
+        if (count) {
+            counts.set(element, count);
+            continue;
+        }
+
+        counts.delete(element);
+        element.removeAttribute('inert');
+    }
+}
+
+function scrollInstantly(view: Window, doc: Document, top: number): void {
+    const root = doc.documentElement.style;
+    const behavior = root.scrollBehavior;
+
+    root.scrollBehavior = 'auto';
+    view.scrollTo(0, top);
+    root.scrollBehavior = behavior;
 }
 
 function applyLock(doc: Document, config: LockConfig): () => void {
@@ -118,7 +146,7 @@ function applyLock(doc: Document, config: LockConfig): () => void {
     return () => {
         restoreStyle();
 
-        if (fixed) view.scrollTo(0, scrollY);
+        if (fixed) scrollInstantly(view, doc, scrollY);
     };
 }
 
@@ -130,7 +158,7 @@ export function lockScroll(doc: Document, config: LockConfig): LockHandle {
 
     if (state.locks.length === 1) state.restore = applyLock(doc, config);
 
-    const marked = config.inert && config.container ? markInert(config.container) : [];
+    const marked = config.inert && config.container ? markInert(config.container, state.inert) : [];
 
     return {
         release() {
@@ -140,7 +168,7 @@ export function lockScroll(doc: Document, config: LockConfig): LockHandle {
 
             state.locks.splice(index, 1);
 
-            for (const element of marked) element.removeAttribute('inert');
+            unmarkInert(marked, state.inert);
 
             if (state.locks.length) return;
 

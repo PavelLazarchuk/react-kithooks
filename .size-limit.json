@@ -3,14 +3,14 @@
         "name": "react-kithooks",
         "path": "dist/index.js",
         "ignore": ["react", "react-dom"],
-        "limit": "20.6 kB",
+        "limit": "20.7 kB",
         "gzip": true
     },
     {
         "name": "react-kithooks (cjs)",
         "path": "dist/index.cjs",
         "ignore": ["react", "react-dom"],
-        "limit": "20.2 kB",
+        "limit": "20.35 kB",
         "gzip": true
     },
     {
@@ -206,7 +206,7 @@
         "name": "react-kithooks/useLockBodyScroll",
         "path": "dist/useLockBodyScroll/index.js",
         "ignore": ["react", "react-dom"],
-        "limit": "1.1 kB",
+        "limit": "1.25 kB",
         "gzip": true
     },
     {
@@ -429,7 +429,7 @@
         "path": "dist/index.js",
         "import": "{ useLockBodyScroll }",
         "ignore": ["react", "react-dom"],
-        "limit": "950 B",
+        "limit": "1.1 kB",
         "gzip": true
     },
     {
