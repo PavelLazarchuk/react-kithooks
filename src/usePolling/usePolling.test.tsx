@@ -205,6 +205,28 @@ describe('usePolling', () => {
         expect(poller).toHaveBeenCalledTimes(3);
     });
 
+    it('treats a poller that throws synchronously as a failed tick and keeps polling', async () => {
+        const poller = vi
+            .fn<() => Promise<string>>()
+            .mockImplementationOnce(() => {
+                throw new Error('sync');
+            })
+            .mockResolvedValue('value');
+        const { result } = renderHook(() =>
+            usePolling(poller, [], { intervalMs: 1000, backoff: false })
+        );
+
+        await tick();
+        expect(result.current.status).toBe('error');
+        expect(result.current.isFetching).toBe(false);
+        expect(result.current.failureCount).toBe(1);
+
+        await tick(1000);
+        expect(poller).toHaveBeenCalledTimes(2);
+        expect(result.current.status).toBe('success');
+        expect(result.current.data).toBe('value');
+    });
+
     it('never backs off past maxBackoffMs', async () => {
         vi.spyOn(Math, 'random').mockReturnValue(1);
         let attempts = 0;

@@ -122,6 +122,7 @@ export function useFormCrashRecovery<T extends Record<string, unknown>>(
     const firstRunRef = useRef(true);
     const prevValueRef = useRef(value);
     const stoppedRef = useRef(false);
+    const restoringRef = useRef(false);
     const persistDisabledRef = useRef(false);
     const hasWrittenRef = useRef(false);
     const channelRef = useRef<{ key: string; channel: BroadcastChannel } | null>(null);
@@ -145,7 +146,13 @@ export function useFormCrashRecovery<T extends Record<string, unknown>>(
         cancelTimer();
         const pending = pendingRef.current;
 
-        if (!pending || stoppedRef.current || persistDisabledRef.current || recoveredRef.current) {
+        if (
+            !pending ||
+            stoppedRef.current ||
+            persistDisabledRef.current ||
+            restoringRef.current ||
+            recoveredRef.current
+        ) {
             return;
         }
 
@@ -213,10 +220,13 @@ export function useFormCrashRecovery<T extends Record<string, unknown>>(
         }
 
         let cancelled = false;
+        restoringRef.current = true;
         setStatus('restoring');
         idbGet<DraftRecord<T>>(fullKey)
             .then(rec => {
                 if (cancelled) return;
+
+                restoringRef.current = false;
                 if (rec) {
                     const expired = rec.savedAt + (rec.ttlMs ?? DEFAULT_TTL_MS) < Date.now();
                     const versionMismatch = (rec.version ?? 1) !== (optsRef.current.version ?? 1);
@@ -233,18 +243,23 @@ export function useFormCrashRecovery<T extends Record<string, unknown>>(
 
                 setStatus('idle');
 
+                if (pendingRef.current?.fullKey === fullKey) void flush();
+
                 if (!sweptThisSession) {
                     sweptThisSession = true;
                     void idbSweepExpired(Date.now()).catch(() => undefined);
                 }
             })
             .catch(() => {
-                if (!cancelled) setStatus('error');
+                if (cancelled) return;
+
+                restoringRef.current = false;
+                setStatus('error');
             });
         return () => {
             cancelled = true;
         };
-    }, [fullKey, disabled, setRecoveredSynced]);
+    }, [fullKey, disabled, setRecoveredSynced, flush]);
 
     // --- flush on key change, before the page can die, or on unmount -----------
     useEffect(() => {

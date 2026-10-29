@@ -76,7 +76,9 @@ export function useWebStorage<T>(
         (next: T | ((prev: T) => T)) => {
             const resolved =
                 typeof next === 'function' ? (next as (prev: T) => T)(getSnapshot()) : next;
-            store.set(serializeRef.current(resolved));
+            const raw: unknown = serializeRef.current(resolved);
+
+            store.set(typeof raw === 'string' ? raw : null);
         },
         [store, getSnapshot]
     );

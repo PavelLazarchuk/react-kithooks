@@ -79,14 +79,14 @@ function useFormCrashRecovery<T extends Record<string, unknown>>(
 
 ### Returns
 
-| Field         | Type                        | Description                                                                              |
-| ------------- | --------------------------- | ---------------------------------------------------------------------------------------- |
-| `recovered`   | `RecoveredDraft<T> \| null` | `{ data, savedAt }` when a valid draft exists, else `null`. Never applied automatically. |
-| `status`      | `RecoveryStatus`            | `'idle'` \| `'restoring'` \| `'saving'` \| `'saved'` \| `'unsupported'` \| `'error'`     |
-| `restore`     | `() => T \| null`           | Returns the draft data and clears `recovered`. You apply it to your state.               |
-| `discard`     | `() => Promise<void>`       | Drops the offered draft and deletes it from storage.                                     |
-| `clear`       | `() => Promise<void>`       | Cancels pending writes and deletes the record — call after a successful submit.          |
-| `lastSavedAt` | `number \| null`            | Timestamp of the last successful write, for a "saved 2s ago" indicator.                  |
+| Field         | Type                        | Description                                                                                                                                                                          |
+| ------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `recovered`   | `RecoveredDraft<T> \| null` | `{ data, savedAt }` when a valid draft exists, else `null`. Never applied automatically.                                                                                             |
+| `status`      | `RecoveryStatus`            | `'idle'` \| `'restoring'` \| `'saving'` \| `'saved'` \| `'unsupported'` \| `'error'`. Nothing is written while `'restoring'`: edits are held and saved once the read finds no draft. |
+| `restore`     | `() => T \| null`           | Returns the draft data and clears `recovered`. You apply it to your state.                                                                                                           |
+| `discard`     | `() => Promise<void>`       | Drops the offered draft and deletes it from storage.                                                                                                                                 |
+| `clear`       | `() => Promise<void>`       | Cancels pending writes and deletes the record — call after a successful submit.                                                                                                      |
+| `lastSavedAt` | `number \| null`            | Timestamp of the last successful write, for a "saved 2s ago" indicator.                                                                                                              |
 
 ## Notes
 

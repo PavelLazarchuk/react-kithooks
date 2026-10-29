@@ -63,11 +63,11 @@ function useLocalStorage<T>(
 
 ### Options
 
-| Option        | Type                   | Default          | Description                                                       |
-| ------------- | ---------------------- | ---------------- | ----------------------------------------------------------------- |
-| `serialize`   | `(value: T) => string` | `JSON.stringify` | How the value is written.                                         |
-| `deserialize` | `(raw: string) => T`   | `JSON.parse`     | How the raw string is read back.                                  |
-| `syncTabs`    | `boolean`              | `true`           | Adopt values written by other tabs. `false` keeps this tab's own. |
+| Option        | Type                   | Default          | Description                                                                                  |
+| ------------- | ---------------------- | ---------------- | -------------------------------------------------------------------------------------------- |
+| `serialize`   | `(value: T) => string` | `JSON.stringify` | How the value is written. A non-string result (`JSON.stringify(undefined)`) removes the key. |
+| `deserialize` | `(raw: string) => T`   | `JSON.parse`     | How the raw string is read back.                                                             |
+| `syncTabs`    | `boolean`              | `true`           | Adopt values written by other tabs. `false` keeps this tab's own.                            |
 
 ### Returns
 

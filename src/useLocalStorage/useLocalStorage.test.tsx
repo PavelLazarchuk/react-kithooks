@@ -30,6 +30,15 @@ describe('useLocalStorage', () => {
         expect(result.current[0]).toBe(42);
     });
 
+    it('removes the key for a value JSON cannot hold, instead of storing "undefined"', () => {
+        localStorage.setItem('draft', JSON.stringify('saved'));
+        const { result } = renderHook(() => useLocalStorage<string | undefined>('draft', 'empty'));
+
+        act(() => result.current[1](undefined));
+        expect(localStorage.getItem('draft')).toBeNull();
+        expect(result.current[0]).toBe('empty');
+    });
+
     it('does not write the initial value into storage on mount', () => {
         renderHook(() => useLocalStorage('count', 0));
         expect(localStorage.getItem('count')).toBeNull();

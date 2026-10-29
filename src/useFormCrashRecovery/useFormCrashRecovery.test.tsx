@@ -435,6 +435,43 @@ describe('useFormCrashRecovery', () => {
         expect(rec.data.title).toBe('draft');
     });
 
+    it('holds writes while the stored draft is still being read, even past the debounce', async () => {
+        await seedRecord();
+        quota.recoveryDelayMs = 100;
+
+        const { result, rerender } = renderRecovery({ title: '' }, { debounceMs: 10 });
+        rerender({ value: { title: 'typed while restoring' } });
+
+        await new Promise(r => setTimeout(r, 50));
+        quota.recoveryDelayMs = 0;
+        expect((await idbGet<any>(FULL_KEY)).data.title).toBe('draft');
+
+        await waitFor(() => expect(result.current.recovered?.data.title).toBe('draft'));
+    });
+
+    it('does not flush over the stored draft when unmounted before the read finishes', async () => {
+        await seedRecord();
+        quota.recoveryDelayMs = 50;
+
+        const { rerender, unmount } = renderRecovery({ title: '' }, { debounceMs: 10 });
+        rerender({ value: { title: 'typed while restoring' } });
+        unmount();
+
+        await new Promise(r => setTimeout(r, 100));
+        quota.recoveryDelayMs = 0;
+        expect((await idbGet<any>(FULL_KEY)).data.title).toBe('draft');
+    });
+
+    it('saves edits held during the read once it finds no draft', async () => {
+        quota.recoveryDelayMs = 60;
+
+        const { result, rerender } = renderRecovery({ title: '' }, { debounceMs: 10 });
+        rerender({ value: { title: 'typed while restoring' } });
+
+        await waitFor(() => expect(result.current.status).toBe('saved'));
+        expect((await idbGet<any>(FULL_KEY)).data.title).toBe('typed while restoring');
+    });
+
     it('restore() immediately after clear() in the same handler does not return a stale draft', async () => {
         await seedRecord();
         const { result } = renderRecovery({ title: '' });

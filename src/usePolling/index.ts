@@ -167,7 +167,7 @@ export function usePolling<T>(
             isFetching: true,
         }));
 
-        pollerRef.current(controller.signal).then(
+        new Promise<T>(call => call(pollerRef.current(controller.signal))).then(
             data => {
                 if (runId !== runIdRef.current) return;
 
